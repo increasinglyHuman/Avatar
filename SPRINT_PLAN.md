@@ -68,14 +68,48 @@ trimesh==4.0.5
 python-multipart==0.0.6
 pillow==10.1.0
 pydantic==2.5.0
+asyncpg==0.29.0          # PostgreSQL async driver
 ```
 
 **Acceptance Criteria:**
 - [ ] Python 3.11+ virtual environment created (3.12 even better)
 - [ ] All dependencies install without errors
-- [ ] `python -c "import fastapi, numpy, pygltflib, trimesh"` succeeds
+- [ ] `python -c "import fastapi, numpy, pygltflib, trimesh, asyncpg"` succeeds
 - [ ] `.env.example` contains all required variables with documentation
 - [ ] README.md updated with setup instructions
+
+**.env.example Template:**
+```bash
+# Server Configuration
+API_PORT=3030
+API_HOST=127.0.0.1
+NODE_ENV=development
+
+# Database (shared with NEXUS and /world)
+# Uses existing bbworlds_nexus database with nexus_user
+DATABASE_URL=postgresql://nexus_user:nexus_secure_2025@localhost:5432/bbworlds_nexus
+DB_POOL_MIN=2
+DB_POOL_MAX=10
+
+# AWS S3 (for GLB exports)
+AWS_ACCESS_KEY_ID=your_key_here
+AWS_SECRET_ACCESS_KEY=your_secret_here
+AWS_REGION=us-west-2
+S3_BUCKET_NAME=poqpoq-avatars
+
+# Asset Paths
+ASSETS_PATH=../assets
+MAKEHUMAN_ASSETS_PATH=../assets/makehuman-assets
+TEMP_PATH=../tmp
+
+# Security
+JWT_SECRET=generate_random_64_char_string
+ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3030
+
+# Logging
+LOG_LEVEL=INFO
+LOG_FILE=logs/avatar-api.log
+```
 
 **Testing:**
 ```bash

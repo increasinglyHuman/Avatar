@@ -116,27 +116,38 @@ ssh -i ~/.ssh/voice-ninja.pem ubuntu@voice-ninja.com
 
 ## Database Configuration
 
-**Database:** `bbworlds_nexus` (shared with /world)
-**User:** `avatar_user` (to be created)
+**Database:** `bbworlds_nexus` (shared with /world, NEXUS)
+**User:** `nexus_user` (shared connection pool)
+**Password:** `nexus_secure_2025` (from existing config)
 **Host:** localhost (PostgreSQL on same server)
+
+**Why Share Database & User?**
+- ✅ **Shared UUID:** Use existing `users.id` for consistent identity across all BlackBox tools
+- ✅ **Single source of truth:** No duplicate user records
+- ✅ **Efficient:** Share connection pool with NEXUS
+- ✅ **Integration:** Avatar GLB URLs automatically available to /world via `characters` table
 
 ### Avatar Tables
 
+**New table: `avatars`** (creation history and gallery)
 ```sql
--- User-created avatars
+-- Avatar creation history and gallery
 CREATE TABLE avatars (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES users(id),              -- From existing users table
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,  -- ← Same UUID as /world!
+
+    -- Avatar identity
     avatar_name VARCHAR(100),
 
-    -- Morph data
-    morph_data JSONB NOT NULL,                      -- Slider values for all morphs
+    -- Morph data (for editing/versioning)
+    morph_data JSONB NOT NULL,                      -- All slider values
 
     -- Export data
     glb_url TEXT,                                   -- S3 URL to exported GLB
     thumbnail_url TEXT,                             -- Preview image
+    file_size_bytes BIGINT,                         -- Track storage usage
 
-    -- Material data
+    -- Material/appearance
     skin_tone VARCHAR(50) DEFAULT 'medium',
     eye_color VARCHAR(50) DEFAULT 'brown',
 
@@ -144,21 +155,53 @@ CREATE TABLE avatars (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     is_public BOOLEAN DEFAULT false,
+    is_current BOOLEAN DEFAULT false,               -- Currently equipped avatar
 
     -- Stats
     export_count INTEGER DEFAULT 0,
-    view_count INTEGER DEFAULT 0
+    view_count INTEGER DEFAULT 0,
+
+    -- Versioning
+    version INTEGER DEFAULT 1,
+    parent_avatar_id UUID REFERENCES avatars(id)    -- For "save as new version"
 );
 
 CREATE INDEX idx_avatars_user_id ON avatars(user_id);
 CREATE INDEX idx_avatars_created_at ON avatars(created_at DESC);
 CREATE INDEX idx_avatars_public ON avatars(is_public) WHERE is_public = true;
+CREATE INDEX idx_avatars_current ON avatars(user_id, is_current) WHERE is_current = true;
 ```
 
-**Integration with NEXUS:**
-- Avatar GLB URLs stored in `characters.model_url`
-- Avatar creator populates `characters` table when user saves
-- No duplicate data - avatars table is for creation history/gallery
+**Existing table: `characters`** (current avatar in /world)
+- Already exists in `bbworlds_nexus`
+- Avatar tool updates `model_url` when user exports
+- NEXUS/World read from this table
+- No changes needed - just populate it!
+
+### Integration Flow
+
+**When user creates/exports avatar:**
+```sql
+-- 1. Insert into avatars table (history)
+INSERT INTO avatars (user_id, avatar_name, morph_data, glb_url, is_current)
+VALUES ($1, $2, $3, $4, true)
+RETURNING id;
+
+-- 2. Update characters table (current avatar for /world)
+INSERT INTO characters (user_id, character_name, model_url, customization_data, is_primary)
+VALUES ($1, $2, $4, $3, true)
+ON CONFLICT (user_id) WHERE is_primary = true
+DO UPDATE SET model_url = $4, customization_data = $3;
+```
+
+**When /world needs current avatar:**
+```sql
+-- Just read from characters table (already exists)
+SELECT model_url FROM characters
+WHERE user_id = $1 AND is_primary = true;
+```
+
+**Migration file:** See `backend/database/migrations/001_create_avatars_table.sql`
 
 See [../database/database.md](../database/database.md) for full database schema.
 
@@ -273,8 +316,8 @@ NODE_ENV=production
 API_PORT=3030
 API_HOST=0.0.0.0
 
-# Database (using existing bbworlds_nexus)
-DATABASE_URL=postgresql://avatar_user:SECURE_PASSWORD@localhost:5432/bbworlds_nexus
+# Database (shared with NEXUS and /world)
+DATABASE_URL=postgresql://nexus_user:nexus_secure_2025@localhost:5432/bbworlds_nexus
 
 # AWS S3 (for GLB exports)
 AWS_ACCESS_KEY_ID=YOUR_KEY

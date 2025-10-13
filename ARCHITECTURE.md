@@ -488,7 +488,18 @@ def export_glb(mesh, skeleton, materials):
 **Server:** poqpoq.com (34.220.134.216)
 **Port:** 3030 (Avatar API)
 **Path:** `/avatar/` (frontend), `/avatar/api/` (backend)
-**Database:** `bbworlds_nexus` (shared with /world)
+
+**Database Configuration:**
+- **Database:** `bbworlds_nexus` (shared with /world, NEXUS)
+- **User:** `nexus_user` (shared connection pool)
+- **Tables:** `avatars` (new), `characters` (existing)
+- **UUID Strategy:** Shared `users.id` across all BlackBox tools
+
+**Why Shared Database?**
+- ✅ **Single source of truth:** One user identity across Animator, Skinner, Avatar, /world
+- ✅ **Seamless integration:** Avatar GLB URLs automatically available to /world
+- ✅ **Efficient:** Share connection pool with NEXUS (port 3020)
+- ✅ **Consistent:** Same user UUID in all tables
 
 See [docs/deployment/DEPLOYMENT_GUIDE.md](docs/deployment/DEPLOYMENT_GUIDE.md) for full deployment instructions.
 
