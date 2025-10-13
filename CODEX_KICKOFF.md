@@ -103,7 +103,44 @@ ls -la
 # Key files: README.md, ARCHITECTURE.md, SPRINT_PLAN.md, etc.
 ```
 
-### Step 3: Create Sprint 0 Branch
+### Step 3: Database Access Setup
+
+**⚠️ CRITICAL:** The database is on the **production server** (poqpoq.com), NOT local!
+
+**For Development, Choose One:**
+
+**Option A: SSH Tunnel (Quick Start)**
+```bash
+# Open tunnel in separate terminal (keep running during development)
+ssh -i ~/.ssh/poqpoq-new.pem -L 5432:localhost:5432 ubuntu@poqpoq.com
+
+# Your .env can stay as localhost:5432
+# Connects via tunnel to production DB
+```
+
+**Option B: Local Test Database (Recommended)**
+```bash
+# Install PostgreSQL locally
+sudo apt install postgresql-16  # Ubuntu
+brew install postgresql@16      # Mac
+
+# Create test database
+sudo -u postgres psql << 'EOF'
+CREATE DATABASE avatar_test;
+CREATE USER test_user WITH PASSWORD 'test_pass';
+GRANT ALL PRIVILEGES ON DATABASE avatar_test TO test_user;
+EOF
+
+# Apply migrations (after cloning repo)
+sudo -u postgres psql -d avatar_test -f backend/database/migrations/001_create_avatars_table.sql
+
+# Update .env
+DATABASE_URL=postgresql://test_user:test_pass@localhost:5432/avatar_test
+```
+
+**See SPRINT_PLAN.md Task 0.1 for full database strategy.**
+
+### Step 4: Create Sprint 0 Branch
 
 ```bash
 # Create feature branch

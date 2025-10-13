@@ -86,10 +86,21 @@ API_HOST=127.0.0.1
 NODE_ENV=development
 
 # Database (shared with NEXUS and /world)
-# Uses existing bbworlds_nexus database with nexus_user
+# IMPORTANT: Database is on PRODUCTION server (poqpoq.com), NOT local!
+# For local development: SSH tunnel required (see below)
+# For production deployment: localhost works (API runs on same server as DB)
 DATABASE_URL=postgresql://nexus_user:nexus_secure_2025@localhost:5432/bbworlds_nexus
 DB_POOL_MIN=2
 DB_POOL_MAX=10
+
+# Local Development Database Access
+# Option 1: SSH Tunnel (recommended for development)
+#   ssh -i ~/.ssh/poqpoq-new.pem -L 5432:localhost:5432 ubuntu@poqpoq.com
+#   Then DATABASE_URL above will connect via tunnel
+#
+# Option 2: Mock/Test Database (for offline development)
+#   Create local PostgreSQL with test data
+#   DATABASE_URL=postgresql://test_user:test_pass@localhost:5432/avatar_test
 
 # AWS S3 (for GLB exports)
 AWS_ACCESS_KEY_ID=your_key_here
@@ -130,6 +141,51 @@ kill %1
 - Environment setup script runs without errors
 - All team members can replicate setup
 - Health check endpoint returns 200 OK
+
+**⚠️ IMPORTANT: Database Development Strategy**
+
+The database is **NOT local** - it's on the production server (poqpoq.com). You have two options:
+
+**Option 1: SSH Tunnel (Recommended for Sprint 0-2)**
+```bash
+# Open SSH tunnel in separate terminal (keep running)
+ssh -i ~/.ssh/poqpoq-new.pem -L 5432:localhost:5432 ubuntu@poqpoq.com
+
+# Now your local API can connect to production DB via localhost:5432
+# .env DATABASE_URL stays as: postgresql://nexus_user:...@localhost:5432/bbworlds_nexus
+```
+
+**Option 2: Local Test Database (Recommended for Sprint 1+)**
+```bash
+# Install PostgreSQL locally
+sudo apt install postgresql-16  # Ubuntu
+brew install postgresql@16      # Mac
+
+# Create local test database
+sudo -u postgres psql << EOF
+CREATE DATABASE avatar_test;
+CREATE USER test_user WITH PASSWORD 'test_pass';
+GRANT ALL PRIVILEGES ON DATABASE avatar_test TO test_user;
+EOF
+
+# Apply schema
+sudo -u postgres psql -d avatar_test < backend/database/migrations/001_create_avatars_table.sql
+
+# Update .env for local development
+DATABASE_URL=postgresql://test_user:test_pass@localhost:5432/avatar_test
+```
+
+**Which to use when:**
+- **Sprint 0 (Setup):** Either works, SSH tunnel is fastest
+- **Sprint 1 (Morphing):** Local test DB recommended (no network dependency)
+- **Sprint 2 (Materials):** Local test DB (faster iteration)
+- **Sprint 3 (Export):** Production DB or SSH tunnel (test real data)
+- **Production Deploy:** Runs on poqpoq.com with localhost connection
+
+**Never:**
+- ❌ Directly expose production PostgreSQL to internet
+- ❌ Hardcode production credentials in code
+- ❌ Test destructive operations on production DB
 
 ---
 
