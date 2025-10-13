@@ -483,10 +483,23 @@ def export_glb(mesh, skeleton, materials):
 
 ---
 
+## Production Deployment
+
+**Server:** poqpoq.com (34.220.134.216)
+**Port:** 3030 (Avatar API)
+**Path:** `/avatar/` (frontend), `/avatar/api/` (backend)
+**Database:** `bbworlds_nexus` (shared with /world)
+
+See [docs/deployment/DEPLOYMENT_GUIDE.md](docs/deployment/DEPLOYMENT_GUIDE.md) for full deployment instructions.
+
+**IMPORTANT:** Read [docs/deployment/GOOD_NEIGHBOR_POLICY_API_ARCHITECTURE_v2_2025-08-31.md](docs/deployment/GOOD_NEIGHBOR_POLICY_API_ARCHITECTURE_v2_2025-08-31.md) before deploying. This is a **shared server** with multiple BlackBox tools.
+
+---
+
 ## Technology Stack
 
 ### Backend
-- **Language:** Python 3.10+
+- **Language:** Python 3.11+ (3.12 recommended, NOT 3.6!)
 - **Framework:** FastAPI (async, modern, fast)
 - **3D Libraries:**
   - `numpy` - Mesh math
