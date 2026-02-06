@@ -54,7 +54,7 @@
     "sepia-speechrecognition-polyfill": "^1.0.0",
     "short-uuid": "^4.2.0",
     "squaresplit": "^1.0.2",
-    "styled-components": "^5.3.1",
+    "styled-components": "^6.3.8",
     "three": "^0.169.0",
     "three-mesh-bvh": "^0.8.2",
     "use-sound": "^5.0.0",
