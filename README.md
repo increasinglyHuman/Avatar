@@ -1,17 +1,38 @@
-# Character Studio
+# BlackBox Avatar
 
-[![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](https://choosealicense.com/licenses/mit/)
-[![Discord](https://img.shields.io/discord/770382203782692945?label=Discord&logo=Discord)](https://discord.gg/8zBvTMb8SU)
-[![Twitter Follow](https://img.shields.io/twitter/follow/m3org)](https://twitter.com/m3org)
+[![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![GitHub](https://img.shields.io/badge/GitHub-increasinglyHuman-purple)](https://github.com/increasinglyHuman/Avatar)
 
+**Web-Based VRM Avatar Creator for poqpoq Worlds**
 
-An open, collaborative, and evolving 3D avatar studio for making glTF / VRM avatars with.
+Part of the [BlackBox Creative Suite](https://poqpoq.com) - Professional browser-based 3D tools.
 
-![image](https://github.com/M3-org/CharacterStudio/assets/32600939/fad3002f-78cd-4cd2-8eae-0c1663a86d25)
+> **Based on:** [CharacterStudio](https://github.com/M3-org/CharacterStudio) by M3-org (MIT Licensed)
 
-:star: **NEW: DOCS!!!** https://m3-org.github.io/characterstudio-docs/ ⭐
+---
 
-# Installation
+## BlackBox Creative Suite
+
+BlackBox Avatar joins three other professional web tools:
+
+- **[Animator](https://poqpoq.com/animator/)** - GLB animation editor with IK system
+- **[Skinner](https://poqpoq.com/skinner/)** - Vertex weight painting tool
+- **[Terraformer](https://poqpoq.com/terraformer/)** - Terrain editor for virtual worlds
+- **[World](https://poqpoq.com/world/)** - AI-first metaverse platform
+
+All tools are browser-based, work with GLB files, and integrate seamlessly.
+
+---
+
+## Quick Start for poqpoq Worlds Alpha
+
+**Alpha Testing Flow (3 Simple Options):**
+
+1. **Upload Your VRM** - Bring your own VRoid/VTuber avatar
+2. **Default Avatar A** - Female preset
+3. **Default Avatar B** - Male preset
+
+**For Developers:**
 
 > Note: You need loot-assets imported to public folder for this to work! https://github.com/m3-org/loot-assets
 
