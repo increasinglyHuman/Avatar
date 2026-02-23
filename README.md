@@ -13,11 +13,13 @@ Part of the [BlackBox Creative Suite](https://poqpoq.com) - Professional browser
 
 ## BlackBox Creative Suite
 
-BlackBox Avatar joins three other professional web tools:
+BlackBox Avatar joins the other professional web tools in the suite:
 
+- **[Legacy](https://poqpoq.com/legacy/)** - OpenSim OAR to GLB converter
 - **[Animator](https://poqpoq.com/animator/)** - GLB animation editor with IK system
 - **[Skinner](https://poqpoq.com/skinner/)** - Vertex weight painting tool
 - **[Terraformer](https://poqpoq.com/terraformer/)** - Terrain editor for virtual worlds
+- **[Landscaper](https://github.com/increasinglyHuman/Landscaper)** - Procedural world population
 - **[World](https://poqpoq.com/world/)** - AI-first metaverse platform
 
 All tools are browser-based, work with GLB files, and integrate seamlessly.
