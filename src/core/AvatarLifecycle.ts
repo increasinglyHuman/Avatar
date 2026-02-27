@@ -1,9 +1,11 @@
-import type { AvatarConfig, AvatarState } from '../types/index.js';
+import type { AvatarConfig, AvatarState, VRMStructure } from '../types/index.js';
 import { AvatarEngine } from './AvatarEngine.js';
 import { LightingSetup } from '../scene/LightingSetup.js';
 import { Background } from '../scene/Background.js';
 import { DressingRoomCamera } from '../camera/DressingRoomCamera.js';
 import { Sidebar } from '../hud/Sidebar.js';
+import { VRMAnalyzer } from '../avatar/VRMAnalyzer.js';
+import { MaterialEditor } from '../avatar/MaterialEditor.js';
 import type { PostMessageBridge } from '../bridge/PostMessageBridge.js';
 import { SceneLoader, TransformNode, Vector3 } from '@babylonjs/core';
 import type { AbstractMesh } from '@babylonjs/core';
@@ -24,6 +26,8 @@ export class AvatarLifecycle {
 
   private modelRoot: TransformNode | null = null;
   private modelMeshes: AbstractMesh[] = [];
+  private vrmStructure: VRMStructure | null = null;
+  private materialEditor: MaterialEditor | null = null;
 
   private container: HTMLElement;
   private canvas: HTMLCanvasElement;
@@ -66,6 +70,18 @@ export class AvatarLifecycle {
       // 4. Load VRM/GLB model
       await this.loadModel(config.modelPath);
 
+      // 4a. Analyze VRM structure
+      const analyzer = new VRMAnalyzer();
+      this.vrmStructure = analyzer.analyze(this.modelMeshes);
+      console.log(
+        `[Avatar] VRM analyzed: mode=${this.vrmStructure.clothingMode}, gender=${this.vrmStructure.gender}, ` +
+          `body=${this.vrmStructure.bodyPrimitives.length}, face=${this.vrmStructure.facePrimitives.length}, ` +
+          `hair=${this.vrmStructure.hairPrimitives.length}, cloth=${this.vrmStructure.clothPrimitives.length}`,
+      );
+
+      // 4b. Material editor
+      this.materialEditor = new MaterialEditor();
+
       // 5. Camera (orbit around loaded model)
       this.camera = new DressingRoomCamera(scene, this.canvas);
       this.camera.focusOnModel(this.modelRoot);
@@ -74,6 +90,9 @@ export class AvatarLifecycle {
       this.sidebar = new Sidebar(this.container);
       if (!config.showSidebar) {
         this.sidebar.setVisible(false);
+      }
+      if (this.vrmStructure && this.materialEditor) {
+        this.sidebar.connectAvatar(this.materialEditor, this.vrmStructure);
       }
 
       // 7. Per-frame updates
@@ -179,6 +198,12 @@ export class AvatarLifecycle {
       const p = this.modelRoot.position;
       console.log(`model pos: (${p.x.toFixed(2)}, ${p.y.toFixed(2)}, ${p.z.toFixed(2)})`);
     }
+    if (this.vrmStructure) {
+      const s = this.vrmStructure;
+      console.log(`VRM: mode=${s.clothingMode} gender=${s.gender}`);
+      console.log(`  body=${s.bodyPrimitives.length} face=${s.facePrimitives.length} hair=${s.hairPrimitives.length} cloth=${s.clothPrimitives.length}`);
+      console.log(`  morphs=${s.morphTargetNames.length} materialRefs: skin=${s.materialRefs.bodySkin.length} eyes=${s.materialRefs.eyeIris.length} hair=${s.materialRefs.hair.length} mouth=${s.materialRefs.mouth.length}`);
+    }
     console.log('===== END DUMP =====');
   }
 
@@ -226,6 +251,8 @@ export class AvatarLifecycle {
     }
 
     // Dispose in reverse order
+    this.materialEditor = null;
+    this.vrmStructure = null;
     this.sidebar?.dispose();
 
     for (const mesh of this.modelMeshes) {
