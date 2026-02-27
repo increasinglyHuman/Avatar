@@ -62,7 +62,7 @@ export class Sidebar {
     // Header
     const header = document.createElement('div');
     header.className = 'sidebar-header';
-    header.textContent = 'Dressing Room';
+    header.textContent = 'Fit';
     this.root.appendChild(header);
 
     // Content placeholder

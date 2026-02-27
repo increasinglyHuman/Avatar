@@ -12,9 +12,9 @@ export class DressingRoomCamera {
     this.camera = new ArcRotateCamera(
       'dressingRoomCamera',
       Math.PI / 2, // alpha: front-facing
-      Math.PI / 2.5, // beta: slight top-down angle
-      2.5, // radius: close for avatar viewing
-      new Vector3(0, 0.85, 0), // target: roughly chest height
+      Math.PI / 2.2, // beta: near eye-level with slight downward angle
+      3.0, // radius: pulled back enough for full body + headroom
+      new Vector3(0, 0.85, 0), // target: roughly chest height (updated by focusOnModel)
       scene,
     );
 
@@ -31,14 +31,15 @@ export class DressingRoomCamera {
     this.camera.minZ = 0.01;
     this.camera.maxZ = 100;
 
-    // Panning sensitivity
-    this.camera.panningSensibility = 200;
+    // Right-mouse panning — higher value = less sensitive (Babylon convention)
+    this.camera.panningSensibility = 800;
 
     this.camera.attachControl(canvas, true);
   }
 
   /**
    * Focus camera on the loaded model by computing its bounding center.
+   * Targets true vertical center with enough radius for full body + headroom.
    */
   focusOnModel(root: TransformNode | null): void {
     if (!root) return;
@@ -62,9 +63,11 @@ export class DressingRoomCamera {
 
     if (minY !== Infinity) {
       const height = maxY - minY;
-      const centerY = minY + height * 0.45; // slightly below center (face focus)
+      // Target slightly above true center — keeps head in frame without zooming out too far
+      const centerY = minY + height * 0.55;
       this.camera.setTarget(new Vector3(0, centerY, 0));
-      this.camera.radius = Math.max(height * 1.2, 1.5);
+      // Keep model large — viewport will narrow with side panels
+      this.camera.radius = Math.max(height * 1.3, 1.8);
     }
   }
 
