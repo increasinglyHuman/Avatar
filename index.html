@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BlackBox Avatar | poqpoq</title>
+    <meta name="description" content="Web-based avatar customization tool for poqpoq World. Create and customize your 3D avatar with clothing, hairstyles, and body adjustments.">
+    <link rel="canonical" href="https://poqpoq.com/avatar/">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://poqpoq.com/avatar/">
+    <meta property="og:title" content="BlackBox Avatar - Character Customization">
+    <meta property="og:description" content="Create and customize your 3D avatar for poqpoq World.">
+    <meta property="og:site_name" content="BlackBox Creative Suite">
+
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body {
+        width: 100%; height: 100%;
+        overflow: hidden; background: #1a1a1a;
+        font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+      }
+      #avatar-container {
+        position: relative;
+        width: 100%; height: 100%;
+        display: flex;
+      }
+      #avatar-viewport {
+        flex: 1;
+        position: relative;
+        min-width: 0;
+      }
+      #avatar-canvas {
+        width: 100%; height: 100%;
+        display: block; outline: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="avatar-container">
+      <div id="avatar-viewport">
+        <canvas id="avatar-canvas"></canvas>
+      </div>
+    </div>
+    <script type="module" src="/src/index.ts"></script>
+  </body>
+</html>
