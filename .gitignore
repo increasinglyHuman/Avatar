@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+.directory
+.Trash-*
+
+# VRM/GLB assets (too large for git)
+*.vrm
+*.glb
+*.gltf
+
+# Certificates
+*.pem
+
+# Logs
+*.log
+
+# Cache
+.cache/
+.parcel-cache/
