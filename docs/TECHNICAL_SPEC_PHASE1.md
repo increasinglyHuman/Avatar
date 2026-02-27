@@ -29,9 +29,28 @@ A player can:
 - Marketplace / user-uploaded content
 - Face structure editing (VRM has 0 structural face morphs)
 
+### Dressing Room Lifecycle
+
+The Dressing Room is a **private space**. When the player enters it:
+
+1. **Avatar vanishes from World** — functionally a teleport-out. The player's avatar is removed from the active sim. Other players cannot see them (privacy while changing).
+2. **Avatar appears in Avatar preview** — the Babylon.js Dressing Room viewport renders the player's avatar on-screen (within the Glitch preview panel or standalone window).
+3. **Player customizes** — browse outfits (one-click swap), mix and match individual items, adjust body/face/colors, apply tattoos and makeup.
+4. **Exit with confirmation** — when the player closes the preview or clicks "Return to World", a confirmation dialog appears: *"Return to World with this look?"* This is a courtesy safeguard — prevents accidental exit before the player is dressed as intended.
+5. **Avatar reappears in World** — teleport-in with updated appearance. Other players see the change via WebSocket broadcast.
+
+### Outfit Presets vs Mix-and-Match
+
+Both are **essential**:
+
+- **Outfits** — one-click swap from a saved thumbnail gallery. Applies an entire look (clothing + hair + colors + accessories) instantly.
+- **Mix-and-match** — individually add, remove, or swap any compatible inventory item. Browse the wardrobe by category, equip piece by piece, build your own unique combination.
+
+Players create outfits via mix-and-match, then save them as presets for quick recall later.
+
 ### Success Criteria
 
-End-to-end: Player opens Appearance tab in World → enters Dressing Room → builds an outfit → saves it → returns to World → other players see the change.
+End-to-end: Player opens Appearance tab in World → enters Dressing Room (avatar vanishes from sim) → builds an outfit (one-click preset or mix-and-match) → saves it → confirms return → avatar reappears in World → other players see the change.
 
 ---
 
@@ -320,12 +339,16 @@ class MaterialEditor {
 }
 ```
 
-### MToon Shader Handling
+### Shader Strategy (Open — needs exploration)
 
-VRoid uses MToon with `litFactor` (main color) and `shadeColorFactor` (shadow tint):
+VRoid exports with MToon (toon shader) using `litFactor` (main color) and `shadeColorFactor` (shadow tint). But we may NOT want toon rendering — explore options:
 
-**Option A (preferred):** Use community `babylon-vrm-loader` if it supports MToon
-**Option B:** Convert to PBRMaterial on load, preserving shade ratio: `shade ≈ base × 0.8`
+**Option A:** PBRMaterial conversion — convert MToon → PBR on load, preserving shade ratio (`shade ≈ base × 0.8`). Standard Babylon PBR look.
+**Option B:** Community `babylon-vrm-loader` if it supports MToon faithfully. Keeps VRoid's toon look.
+**Option C:** Custom shader (Node Material Editor) — design our own look that suits poqpoq World's aesthetic.
+**Option D:** Offer multiple shader presets — "Toon", "Realistic PBR", "Stylized" — player picks their avatar rendering style.
+
+**Decision needed Sprint 0/1** — explore what looks best on our avatars in the World's lighting context. The shader choice affects the entire avatar aesthetic.
 
 ### Linked Materials
 
@@ -538,6 +561,10 @@ DOM-based sidebar, 320px wide. Same pattern as Glitch's HUD: inline CSS injectio
 
 Three tabs: **Outfits** (default) | **Body** | **Wardrobe**
 
+- **Outfits** — thumbnail gallery of saved presets. One click = full look swap. Also: save current look, rename, delete.
+- **Body** — proportions sliders, skin/eye/hair/lip/nail colors, tattoos, makeup.
+- **Wardrobe** — browse inventory by category (tops, bottoms, shoes, onepiece, accessories, hair). Click to equip/unequip individual items. This is where **mix-and-match** happens — players build custom combinations piece by piece, then optionally save as a new outfit preset.
+
 See DRESSING_ROOM_SPEC.md §2 for detailed tab content specifications.
 
 ### Reusable Components
@@ -553,9 +580,40 @@ See DRESSING_ROOM_SPEC.md §2 for detailed tab content specifications.
 
 ## 14. World Integration (`bridge/`)
 
+### Dressing Room Entry/Exit Protocol
+
+The Dressing Room is embedded inside the Glitch preview panel (same iframe pattern as other BB tools). When the player clicks "Enter Dressing Room":
+
+```
+World                                    Avatar (iframe)
+  │                                          │
+  ├─── avatar:teleport-out ──────────────►  (removes player avatar from sim)
+  ├─── avatar:spawn { manifest } ────────►  lifecycle.spawn()
+  │                                          ├── loads base model
+  │                                          ├── applies manifest
+  │                                          └── bridge.sendReady()
+  │  ◄───────── avatar:ready ────────────────┤
+  │                                          │
+  │  ... player customizes ...               │
+  │                                          │
+  │  Player clicks "Return to World"         │
+  │  or closes preview:                      │
+  │                                          ├── confirmation dialog:
+  │                                          │   "Return to World with this look?"
+  │                                          │   [Return to World] [Keep Editing]
+  │                                          │
+  │  ◄───── avatar:save { manifest, glb } ──┤  (on confirm)
+  ├─── avatar:teleport-in ──────────────►   (avatar reappears in sim)
+  ├─── broadcast updated GLB to zone ──►    (other players see change)
+  │                                          │
+  └─── avatar:dispose ──────────────────►   lifecycle.dispose()
+```
+
+The confirmation dialog is a **courtesy safeguard** — the player may have accidentally closed the preview before they were dressed as intended. It does NOT block if the player deliberately exits.
+
 ### PostMessageBridge
 
-8 message types per DRESSING_ROOM_SPEC §7.2. Same implementation pattern as Glitch's PostMessageBridge.
+Message types per DRESSING_ROOM_SPEC §7.2, plus `teleport-out` / `teleport-in` for avatar visibility management. Same implementation pattern as Glitch's PostMessageBridge.
 
 ### Bootstrap
 
@@ -565,6 +623,7 @@ if (isEmbedded()) {
     await lifecycle.spawn(payload);
     bridge.sendReady();
   });
+  bridge.onDispose(() => lifecycle.dispose());
 } else {
   await lifecycle.spawn(DEFAULT_MANIFEST);  // Standalone dev mode
 }
@@ -701,7 +760,7 @@ Debug keys, error handling, performance profiling, production deploy to poqpoq.c
 
 | Risk | Mitigation |
 |------|------------|
-| MToon shader unavailable in Babylon.js 8.x | PBR conversion with shade ratio; investigate community VRM loader |
+| Shader aesthetic choice | Explore PBR vs toon vs custom in Sprint 0; test in World lighting context |
 | VRM spring bones (hair physics) | Custom spring solver or accept static hair Phase 1 |
 | Texture compositing slow on mobile | Smaller canvas fallback (1024); batch layer changes |
 | Cross-gender clothing clipping | Gender tag on items; allow but warn |
@@ -722,6 +781,13 @@ Debug keys, error handling, performance profiling, production deploy to poqpoq.c
 ### Architecture Reference
 - Glitch repo: `../glitch/` — Babylon.js patterns (engine, lifecycle, HUD, bridge)
 - World repo: `../../World/` — AppearancePanel stub, AvatarDriverFactory
+
+### World Good-Neighbor Policies (MUST READ before integration work)
+- `World/docs/GOOD_NEIGHBOR_POLICY_API_ARCHITECTURE_v2.2_2025-10-05.md` — Port allocation, security tiers, endpoint conventions
+- `World/docs/infra/PRODUCTION_ROUTING_MAP_2025-11-12.md` — Apache proxy routes, service ports, WebSocket config
+- `World/docs/COMPLETE_DATABASE_SCHEMA_REFERENCE.md` — 67 tables across 3 databases, JSONB columns, indexes
+- `World/docs/COMPLETE_API_ENDPOINT_REFERENCE.md` — 90+ endpoints, auth patterns, rate limiting
+- `World/docs/infra/services/DATABASE_GOOD_NEIGHBOR_POLICY_2025-10-03.md` — DB separation strategy, credentials
 
 ### Preserved Code (Port Targets)
 - `avatar-preserved/library/vrmMaterialEditor.js` — Material modification API (Three.js → port)
