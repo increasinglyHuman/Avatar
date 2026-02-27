@@ -119,10 +119,83 @@ Color swatches for fingernail tinting (reference: SL nails HUD):
 - Natural, Red, Pink, Coral, Berry, Plum, Nude, Black, White, French tip
 - Custom color picker for exact match
 
-#### Future: Tattoos, Makeup, Piercings
-- **Tattoos**: Texture compositing overlay on Body_00_SKIN (not implemented Phase 1)
-- **Makeup**: UV-aware face painting on Face_00_SKIN (not implemented Phase 1)
-- **Body attachments**: Horns, tails, piercings, wings (mesh attachment system — deferred to SuperMesh)
+#### Skin Layers (Texture Compositing)
+
+The skin is not a single texture — it's a **compositing stack**. Multiple translucent layers blend together at runtime to produce the final skin appearance. This is the same technique VRoid uses internally for socks and underwear (painted onto body skin rather than separate geometry), extended to support creative expression.
+
+**The Skin Layer Stack:**
+
+```
+┌─────────────────────────────────────────┐
+│  Layer 5: Temporary Effects (top)       │  mud, paint splatter, zombie rot
+│  Layer 4: Tattoos                       │  persistent body art, multiple allowed
+│  Layer 3: Makeup / Face Paint           │  lipstick, eyeshadow, face paint
+│  Layer 2: Nail Polish                   │  hand/foot UV region tint
+│  Layer 1: Clothing Paint                │  socks, underwear (texture-only items)
+│  Layer 0: Base Skin (bottom)            │  Body_00_SKIN / Face_00_SKIN
+└─────────────────────────────────────────┘
+         ↓ composited at runtime ↓
+    Final DynamicTexture → GPU upload
+```
+
+Each layer is an RGBA image (or procedural tint) alpha-blended onto the one below. The base skin is always opaque; all layers above use alpha to show through.
+
+**Implementation (Babylon.js):**
+
+```
+// Conceptual — actual API in implementation phase
+const skinCompositor = new SkinCompositor(bodyMesh, faceMesh);
+skinCompositor.setBaseSkin(skinTonePreset);         // Layer 0
+skinCompositor.addClothingPaint('socks', sokTex);   // Layer 1
+skinCompositor.setNailColor('#CC0033');              // Layer 2
+skinCompositor.addMakeup('lips', lipTex, '#CC4455');  // Layer 3
+skinCompositor.addTattoo('sleeve-left', tattooTex);   // Layer 4
+skinCompositor.addTempEffect('mud-splash', mudTex);    // Layer 5
+skinCompositor.compose();  // → DynamicTexture on GPU
+```
+
+**Performance:** Compositing happens on an OffscreenCanvas (2048×2048 for body, 1024×1024 for face). Only recomposites when a layer changes — not per-frame. Cost: ~2-5ms per recomposite.
+
+**Layer Types:**
+
+| Layer | Persistence | Stacking | UV Target | Examples |
+|-------|------------|----------|-----------|---------|
+| Base Skin | Permanent | 1 only | Body + Face | Skin tone presets, custom color |
+| Clothing Paint | Per-outfit | 1 per sub-slot | Body regions | Socks, underwear, undershirts |
+| Nail Polish | Per-outfit | 1 only | Hand/foot UV | Color tint on nail vertices |
+| Makeup | Per-outfit | Multiple | Face UV | Lipstick, eyeshadow, blush, eyeliner |
+| Tattoos | Persistent | Multiple (up to 8) | Body + Face | Arm sleeve, back piece, face tattoo |
+| Temp Effects | Session-only | Multiple | Body + Face | Mud, paint, zombie skin, glow |
+
+**Tattoo System:**
+- Tattoos are **persistent** — saved in the character manifest, survive outfit changes
+- Each tattoo: texture asset + UV placement + opacity + optional color tint
+- Up to 8 simultaneous tattoos (performance limit on compositing layers)
+- Tattoo catalog: pre-made designs (tribal, geometric, floral) + eventually user-uploaded
+- UV-region aware: arm sleeve, chest, back, leg, face regions with proper projection
+
+**Makeup System:**
+- Applied to Face_00_SKIN texture region
+- Pre-made styles (thumbnail grid selector): natural, dramatic, goth, fantasy
+- Adjustable: lipstick color, eyeshadow color, intensity slider
+- Saved per-outfit (different looks for different outfits)
+
+**Temporary Effects (World Integration):**
+- Applied by World events, not the dressing room
+- Examples: fell in mud, paint balloon fight, zombie infection, magic glow
+- Decay over time or removed by "wash" action
+- Fun social interactions: paint/splash other players' avatars
+- NOT saved to character manifest — session/event lifetime only
+
+**Creative Skins (Full Override):**
+- Special "zombie," "robot," "crystal," "shadow" skin replacements
+- Replace the entire base skin texture with a themed alternative
+- Still compositable: zombie skin + tattoos + mud = undead biker in a swamp fight
+
+#### Body Attachments (Deferred to SuperMesh)
+- Horns, tails, piercings, wings, antennae — mesh attachment system
+- Requires attachment bone points not present in VRM skeleton
+- SuperMesh (Phase 3) adds dedicated attachment bones
 
 ### 2.3 Wardrobe (Clothing Inventory)
 
@@ -203,25 +276,26 @@ Items are identified by their VRM material name pattern:
 | `*_Accessory_Glove_*_CLOTH` | `accessory_arm` |
 | `*_HAIR` (in Hair001 mesh) | `hair` |
 
-### 3.4 Catalog Size Estimates
+### 3.4 Catalog Size (Verified — Feb 2026)
 
-These are VRoid Studio's built-in style counts. Actual unique mesh count per category is lower (many styles share geometry with different textures):
+Complete VRM collection exported and fingerprinted. Unique mesh count verified via MD5 hash of vertex position buffer data.
 
-| Category | VRoid Styles | Est. Unique Meshes | Exported So Far |
-|----------|-------------|-------------------|-----------------|
-| Tops (Shirts) | ~30 | ~10 | 38 VRMs |
-| Bottoms (Pants) | ~45 | ~6 | 5 VRMs |
-| Dresses/Robes | ~33 | ~14 | 2 (mixed in tops) |
-| Inner Tops | ~7 | ~3 | 0 |
-| Inner Bottoms | ~2 | ~2 | 0 |
-| Socks | ~14 | ~4 (length variants) | 0 |
-| Shoes | ~60 | ~15 | 0 |
-| Neck Accessories | ~16 | ~8 | 0 |
-| Arm Accessories | ~16 | ~6 | 0 |
-| Hair Styles | 16+ | 16 | 16 VRMs |
-| **Total** | **~239** | **~84** | **61** |
+| Category | VRM Files | Unique Meshes | Mesh Type | Notes |
+|----------|:---------:|:-------------:|-----------|-------|
+| Tops | 38 | 72 | CLOTH geometry | Many VRMs contain multi-layer garment prims |
+| Bottoms (Pants) | 49 | 31 | CLOTH geometry | Includes skirts; some share mesh across color variants |
+| Dresses/Onepiece | 26 | 38 | CLOTH geometry | Full-body garments, overrides tops+bottoms |
+| Shoes | 48 | 45 | CLOTH geometry | Wide variety — sandals to boots |
+| Accessories | 25 | 11 | CLOTH geometry | 8 neck + 15 wrist + 2 belt |
+| Socks | 25 | ~1 CLOTH, 25 textures | Texture-only | Painted on body skin, no separate geometry |
+| Inner Tops | 7 | 0 CLOTH, 7 textures | Texture-only | Painted on body skin |
+| Inner Bottoms | 2 | 0 CLOTH, 2 textures | Texture-only | Painted on body skin |
+| Hair | 16 | 16 | Mesh swap | Each hair is unique geometry |
+| **Total** | **236** | **197 meshes + ~34 textures** | | |
 
-Each base mesh × color tinting = 5-8x variety. Conservative catalog: **400-700 distinct items**.
+Key finding: **socks, undershirts, and underpants are texture-only** — VRoid composites them onto the body skin material rather than creating separate geometry. This is the same compositing technique we use for tattoos and makeup (see Section 2.2: Skin Layers).
+
+Each unique mesh × color tinting = 3-8x effective variety. **Conservative catalog: 600-1,500 visually distinct items.**
 
 ---
 
@@ -412,7 +486,18 @@ Tabs at top. Action buttons at bottom.
     "legLength": 1.0,
     "neckLength": 1.0,
     "headScale": 1.0
-  }
+  },
+  "makeup": {
+    "lips": { "style": "natural-02", "color": "#CC4455", "opacity": 0.8 },
+    "eyeshadow": { "style": "smoky-01", "color": "#4A3B5C", "opacity": 0.6 },
+    "blush": null,
+    "eyeliner": null
+  },
+  "tattoos": [
+    { "id": "sleeve-tribal-01", "region": "arm-left", "opacity": 0.9, "tint": null },
+    { "id": "back-wings-02", "region": "back", "opacity": 0.7, "tint": "#1A1A2E" }
+  ],
+  "creativeSkin": null
 }
 ```
 
@@ -558,19 +643,33 @@ s3://poqpoq-avatars/ → CloudFront CDN
 
 Before the Dressing Room can function, raw VRM exports must be processed into individual GLB pieces:
 
-### 9.1 Input
+### 9.1 Input (Complete Collection)
 - 38 top VRMs (`avatar-preserved/assets/vRoidModels/clothing/tops/`)
-- 5 pant VRMs (`avatar-preserved/assets/vRoidModels/clothing/pants/`)
+- 49 pant/skirt VRMs (`avatar-preserved/assets/vRoidModels/clothing/pants/`)
+- 26 dress VRMs (`avatar-preserved/assets/vRoidModels/clothing/dresses/`)
+- 48 shoe VRMs (`avatar-preserved/assets/vRoidModels/clothing/shoes/`)
+- 25 sock VRMs (`avatar-preserved/assets/vRoidModels/clothing/socks/`)
+- 25 accessory VRMs (`avatar-preserved/assets/vRoidModels/clothing/accessories/`)
+- 7 inner top VRMs (`avatar-preserved/assets/vRoidModels/clothing/inner_tops/`)
+- 2 inner bottom VRMs (`avatar-preserved/assets/vRoidModels/clothing/inner_bottoms/`)
 - 16 hair VRMs (`avatar-preserved/assets/vRoidModels/hair/`)
-- 2+ nude bases (`avatar-preserved/assets/vRoidModels/bases/`)
+- 6 base VRMs (`avatar-preserved/assets/vRoidModels/bases/`)
 
 ### 9.2 Process
-For each clothing VRM:
-1. Load with VRM/GLB loader
+
+**For CLOTH geometry items** (tops, bottoms, dresses, shoes, accessories):
+1. Load VRM with GLB loader
 2. Identify CLOTH primitives by material name pattern
 3. Extract each CLOTH primitive as standalone GLB (mesh + material + skeleton bindings)
 4. Render 256×256 thumbnail (front view, on neutral mannequin)
 5. Record metadata (vert count, material name, slot, tags)
+
+**For texture-only items** (socks, inner tops, inner bottoms):
+1. Load VRM, extract Body_00_SKIN texture
+2. Diff against nude base texture to isolate the garment paint region
+3. Save garment texture as alpha-masked PNG (compositing layer)
+4. Render thumbnail showing the garment on body
+5. Record metadata — these are compositing layers, not mesh swaps
 
 ### 9.3 Output
 - Individual `.glb` files per clothing piece
@@ -586,11 +685,14 @@ Port `vrmClothingManager.js` extraction logic to a Node.js script using Babylon.
 ## 10. Open Questions
 
 1. **Cross-gender clothing** — Do feminine tops fit on masculine bases? (Same J_Bip skeleton but different body proportions — likely clips. May need separate masc/fem clothing catalogs.)
-2. **Actual unique mesh count** — The 223 VRoid styles include texture-only variants. Need to deconstruct VRMs to get true mesh count per category.
+2. ~~**Actual unique mesh count**~~ — **RESOLVED**: 197 unique CLOTH meshes + ~34 texture-only garments. See Section 3.4.
 3. **Extraction format** — GLB (most portable) vs mini-VRM (preserves MToon metadata)?
 4. **Thumbnail generation** — Transparent background, solid color, or gradient? Front view only or 3/4 angle?
 5. **Starter wardrobe** — How many items does a new player get for free? All? A subset? Unlock more via quests/marketplace?
-6. **Avatar persistence** — Does the dressing room bake a single GLB and upload (simple, expensive), or does the World client assemble from parts at runtime (complex, efficient)?
+6. **Avatar persistence** — **PARTIALLY RESOLVED**: Dual persistence (manifest JSON + baked GLB). See CHARACTER_MANIFEST_SPEC.md.
+7. **Marvelous Designer compatibility** — Can VRoid body mesh serve as MD avatar for custom clothing creation? Body OBJ extracted for testing. Pipeline: MD → FBX → Blender (rig to J_Bip) → GLB → system. See CHARACTER_MANIFEST_SPEC.md §9.
+8. **Tattoo/compositing asset format** — What resolution for tattoo textures? How to handle UV seams across body/face boundary? Pre-positioned tattoo regions vs free placement?
+9. **Temporary effects authority** — Who authorizes temp effects (mud, paint) on another player's avatar? Consent model needed for "splash" interactions.
 
 ---
 

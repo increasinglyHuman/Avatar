@@ -1,704 +1,736 @@
 # Phase 1 Technical Specification: VRM Avatar System
 
-**Status:** Draft
-**Date:** 2026-02-26
+**Version:** 2.0
+**Date:** 2026-02-27
 **Authors:** Allen Partridge, Claude Code
-**Implements:** AVATAR_STRATEGY.md Phase 1, ADR-001, ADR-004, ADR-005
+**Implements:** AVATAR_STRATEGY.md Phase 1, ADR-001, ADR-004, ADR-005, ADR-006
+**References:** DRESSING_ROOM_SPEC.md, CHARACTER_MANIFEST_SPEC.md
 
 ---
 
-## Scope
+## 1. Scope
 
-Ship the first playable version of the avatar dress-up system. A player can:
-1. Swap between prebuilt VRMs or upload their own
-2. Preview their avatar in a glam viewport with turntable rotation
-3. Change skin tone, eye color, hair color, lip color, nail color
-4. Swap hairstyles
-5. Strip and swap clothing pieces (Mode A VRMs)
-6. Reconstruct their body for outfit changes (Mode A and Mode B VRMs)
-7. Save and load to World via NEXUS
+### What Phase 1 Ships
+
+A player can:
+1. Enter a private Dressing Room (Babylon.js 3D environment)
+2. Browse and equip clothing from a VRoid-sourced catalog (197 mesh items + 34 texture items)
+3. Swap hairstyles (16 styles)
+4. Adjust body proportions (height, shoulders, limbs, head)
+5. Change skin tone, eye color, hair color, lip color, nail color
+6. Apply makeup and tattoo compositing layers
+7. Save and load outfits (one-click swap from gallery)
+8. Return to World — changes broadcast to other players
+
+### What Phase 1 Does NOT Include
+
+- SuperMesh parametric body (Phase 3)
+- AI Mesh / Meshy3D pipeline (Phase 2)
+- Marketplace / user-uploaded content
+- Face structure editing (VRM has 0 structural face morphs)
+
+### Success Criteria
+
+End-to-end: Player opens Appearance tab in World → enters Dressing Room → builds an outfit → saves it → returns to World → other players see the change.
 
 ---
 
-## 1. VRM Material Editor
+## 2. Technology Stack
 
-**New file:** `src/library/vrmMaterialEditor.js`
+| Component | Choice | Notes |
+|-----------|--------|-------|
+| 3D Runtime | Babylon.js 8.x | WebGPU-first, WebGL2 fallback |
+| Language | TypeScript (strict) | ES2022 target |
+| Build | Vite | Manual chunks for Babylon vendor split |
+| UI | DOM-based overlays | No React, no Babylon GUI |
+| Communication | PostMessageBridge | iframe ↔ parent (Glitch pattern) |
+| State | Vanilla TS classes | No Zustand, no Redux |
+| VRM Loading | @babylonjs/loaders (GLB) | VRM = GLB with extensions |
+| Export | @babylonjs/serializers | Baked GLB for World consumption |
 
-This is the core engine. It detects VRM structure, identifies modifiable components, and applies changes.
+### Architecture Reference
 
-### 1.1 Structure Detection
+The Glitch repo at `/home/p0qp0q/blackbox/glitch/` defines our architectural DNA. Avatar follows the same patterns: engine initialization, lifecycle management, DOM HUD, PostMessageBridge, debug keys, reverse-order disposal.
 
-```javascript
-/**
- * Analyze a loaded VRM and return its modifiable structure.
- * @param {THREE.Object3D} model - The loaded VRM scene
- * @returns {VRMStructure}
- */
-function analyzeVRM(model) → {
-  clothingMode: 'A' | 'B' | 'nude',    // Mode A = separate CLOTH prims, B = baked, nude = no clothing
-  bodyPrimitives: [{                     // All primitives in Body mesh
-    name: string,                        // e.g. 'Body_00_SKIN', 'Shoes_01_CLOTH'
-    type: 'skin' | 'cloth' | 'hair',    // Categorized by naming convention
-    material: THREE.Material,
-    triangleCount: number,
-    mesh: THREE.SkinnedMesh
-  }],
-  facePrimitives: [{                     // All primitives in Face mesh
-    name: string,
-    type: 'skin' | 'eye' | 'mouth' | 'brow' | 'lash' | 'line',
-    material: THREE.Material,
-    mesh: THREE.SkinnedMesh
-  }],
-  hairMesh: THREE.SkinnedMesh | null,
-  morphTargets: string[],                // All 57 Fcl_* names
-  boneTransforms: Map<string, {x,y,z}>, // All 52 J_Bip rest positions
-  springBoneChains: string[],            // J_Sec chain names
-  gender: 'masculine' | 'feminine'       // Inferred from eyelash presence + spring bone count
+---
+
+## 3. Project Structure
+
+```
+BlackBoxAvatar/
+├── src/
+│   ├── index.ts                    # Entry point & bootstrap
+│   ├── core/
+│   │   ├── AvatarEngine.ts         # Babylon init (WebGPU → WebGL2 fallback)
+│   │   └── AvatarLifecycle.ts      # Orchestrator: spawn → run → dispose
+│   ├── avatar/
+│   │   ├── VRMAnalyzer.ts          # Structure detection from material naming
+│   │   ├── MaterialEditor.ts       # Skin, eye, hair, lip, nail, clothing color
+│   │   ├── ClothingManager.ts      # Extract, apply, remove, toggle CLOTH prims
+│   │   ├── HairSwapper.ts          # Hair mesh transplant between models
+│   │   ├── BoneEditor.ts           # Proportion adjustment (±30% bone translation)
+│   │   ├── SkinCompositor.ts       # 6-layer texture compositing
+│   │   └── ManifestAssembler.ts    # Build avatar from CHARACTER_MANIFEST JSON
+│   ├── scene/
+│   │   ├── LightingSetup.ts        # Studio 3-point lighting
+│   │   └── Background.ts           # Neutral gradient or room
+│   ├── camera/
+│   │   └── DressingRoomCamera.ts   # ArcRotateCamera with zoom limits + auto-focus
+│   ├── hud/
+│   │   ├── Sidebar.ts              # 320px sidebar container + tab management
+│   │   ├── OutfitsTab.ts           # Thumbnail gallery, save/load outfits
+│   │   ├── BodyTab.ts              # Proportions, skin, face, nails, tattoos, makeup
+│   │   ├── WardrobeTab.ts          # Category sub-tabs, item grid, equip/remove
+│   │   └── components/
+│   │       ├── ThumbnailGrid.ts    # Reusable grid of clickable thumbnails
+│   │       ├── ColorPicker.ts      # Swatch presets + custom color input
+│   │       └── SliderControl.ts    # Labeled range slider with endpoints
+│   ├── bridge/
+│   │   ├── PostMessageBridge.ts    # iframe communication (from Glitch)
+│   │   └── EmbedDetection.ts       # isEmbedded() check (from Glitch)
+│   ├── catalog/
+│   │   ├── CatalogLoader.ts        # Fetch + cache items.json
+│   │   └── ThumbnailManager.ts     # Lazy-load thumbnails on scroll
+│   └── types/
+│       ├── index.ts                # All type exports
+│       ├── VRMStructure.ts         # VRM analysis result types
+│       ├── Manifest.ts             # Character manifest types (from spec)
+│       └── Catalog.ts              # Item catalog types
+├── public/
+│   └── assets/                     # Deployed extracted items (GLB + thumbnails)
+├── tools/
+│   ├── extract-clothing.mjs        # Node.js: VRM → individual GLB pieces
+│   ├── extract-textures.mjs        # Node.js: texture-only items → compositing PNGs
+│   ├── generate-thumbnails.mjs     # Node.js: render 256×256 per item
+│   └── build-catalog.mjs           # Node.js: generate items.json manifest
+├── index.html
+├── vite.config.ts
+├── tsconfig.json
+└── package.json
+```
+
+---
+
+## 4. Core Engine (`core/`)
+
+### AvatarEngine.ts
+
+Direct adaptation of Glitch's `GlitchEngine.ts`. WebGPU-first with WebGL2 fallback:
+
+```typescript
+export class AvatarEngine {
+  private engine: Engine | WebGPUEngine | null = null;
+  private scene: Scene | null = null;
+
+  async initialize(): Promise<void> {
+    try {
+      const gpu = new WebGPUEngine(canvas, {
+        adaptToDeviceRatio: true,
+        powerPreference: 'high-performance',
+      });
+      await gpu.initAsync();
+      this.engine = gpu;
+    } catch {
+      this.engine = new Engine(canvas, true, {
+        adaptToDeviceRatio: true,
+        powerPreference: 'high-performance',
+        audioEngine: false,
+      });
+    }
+    this.createScene();
+  }
+  // ... same dispose/render/resize pattern as GlitchEngine
 }
 ```
 
-**Detection logic:**
-- `_CLOTH` in primitive name → `type: 'cloth'`
-- `_SKIN` in primitive name → `type: 'skin'`
-- `_HAIR` in primitive name → `type: 'hair'`
-- `_EYE` in primitive name → `type: 'eye'`
-- `_FACE` in primitive name → categorize by prefix (FaceBrow → 'brow', FaceEyelash → 'lash', etc.)
-- Body mesh has `_CLOTH` prims → `clothingMode: 'A'`
-- Body mesh has only SKIN + HAIR prims, SKIN tri count > 9000 → `clothingMode: 'B'`
-- Body mesh has only SKIN + HAIR prims, SKIN tri count < 9000 → `clothingMode: 'nude'`
+### AvatarLifecycle.ts
 
-### 1.2 Material Modification API
+Orchestrator following Glitch's `GlitchLifecycle.ts` pattern:
 
-```javascript
-/**
- * Set skin tone across body and face (linked).
- * Preserves shade color ratio for MToon materials.
- */
-function setSkinTone(model, hexColor) → void
+```typescript
+export class AvatarLifecycle {
+  private state: AvatarState = 'idle';  // 'idle' | 'loading' | 'running' | 'disposed'
 
-/**
- * Set eye iris color.
- */
-function setEyeColor(model, hexColor) → void
+  // Subsystems (initialized in spawn order, disposed in reverse)
+  private avatarEngine: AvatarEngine | null = null;
+  private lighting: LightingSetup | null = null;
+  private background: Background | null = null;
+  private camera: DressingRoomCamera | null = null;
+  private sidebar: Sidebar | null = null;
+  private catalogLoader: CatalogLoader | null = null;
 
-/**
- * Set hair color (applies to Hair mesh material + HairBack in Body).
- */
-function setHairColor(model, hexColor) → void
+  // Avatar-specific subsystems
+  private vrmAnalyzer: VRMAnalyzer | null = null;
+  private materialEditor: MaterialEditor | null = null;
+  private clothingManager: ClothingManager | null = null;
+  private skinCompositor: SkinCompositor | null = null;
+  private manifestAssembler: ManifestAssembler | null = null;
 
-/**
- * Set lip color (targets FaceMouth / lip UV region of Face_00_SKIN).
- */
-function setLipColor(model, hexColor) → void
+  async spawn(config: AvatarConfig): Promise<void> {
+    this.state = 'loading';
 
-/**
- * Set cheek/blush color (targets cheek UV region of Face_00_SKIN).
- */
-function setCheekColor(model, hexColor) → void
+    // 1. Engine + scene
+    this.avatarEngine = new AvatarEngine(this.canvas);
+    await this.avatarEngine.initialize();
+    const scene = this.avatarEngine.getScene();
 
-/**
- * Set nail color (targets nail UV regions of Body_00_SKIN).
- */
-function setNailColor(model, hexColor) → void
+    // 2. Scene setup
+    this.lighting = new LightingSetup(scene);
+    this.background = new Background(scene);
+    this.camera = new DressingRoomCamera(scene, this.canvas);
 
-/**
- * Set clothing piece color (targets specific CLOTH primitive).
- */
-function setClothingColor(model, primitiveName, hexColor) → void
+    // 3. Catalog
+    this.catalogLoader = new CatalogLoader();
+    await this.catalogLoader.load();
 
-/**
- * Swap texture on a specific primitive.
- * @param {string} target - Primitive name (e.g. 'EyeIris_00_EYE')
- * @param {string|Blob} texture - URL or Blob of replacement texture
- */
-function swapTexture(model, target, texture) → Promise<void>
-```
+    // 4. Avatar systems
+    this.vrmAnalyzer = new VRMAnalyzer();
+    this.materialEditor = new MaterialEditor();
+    this.clothingManager = new ClothingManager(scene, this.catalogLoader);
+    this.skinCompositor = new SkinCompositor();
+    this.manifestAssembler = new ManifestAssembler(
+      scene, this.vrmAnalyzer, this.materialEditor,
+      this.clothingManager, this.skinCompositor
+    );
 
-**MToon color handling:** VRoid's MToon shader uses `litFactor` (main color) and `shadeColorFactor` (shadow tint). When setting skin tone, compute shade as `baseColor * 0.8` to maintain the MToon look. Expose this ratio as an optional parameter for advanced users.
+    // 5. Load avatar from manifest
+    await this.manifestAssembler.assemble(config.manifest);
 
-### 1.3 Bone Transform API
+    // 6. UI
+    this.sidebar = new Sidebar(this.container, {
+      manifestAssembler: this.manifestAssembler,
+      catalogLoader: this.catalogLoader,
+      materialEditor: this.materialEditor,
+      clothingManager: this.clothingManager,
+      skinCompositor: this.skinCompositor,
+    });
 
-```javascript
-/**
- * Get all 52 J_Bip bone rest positions.
- */
-function extractBoneTransforms(model) → Map<string, {x, y, z}>
+    // 7. Render loop
+    this.avatarEngine.startRenderLoop();
+    this.state = 'running';
+  }
 
-/**
- * Apply bone rest position overrides.
- * Used for body proportion adjustment and reconstruction.
- */
-function applyBoneTransforms(model, transforms: Map<string, {x, y, z}>) → void
-
-/**
- * Convenience: set overall height via Hips Y translation.
- */
-function setHeight(model, hipsY: number) → void
-
-/**
- * Convenience: set shoulder width via UpperArm X translation (symmetric).
- */
-function setShoulderWidth(model, upperArmX: number) → void
-
-/**
- * Convenience: set head scale (uniform, to compensate height changes).
- */
-function setHeadScale(model, scale: number) → void
-```
-
----
-
-## 2. Clothing System
-
-**New file:** `src/library/vrmClothingManager.js`
-
-### 2.1 Clothing Piece Extraction
-
-```javascript
-/**
- * Extract all CLOTH primitives from a Mode A VRM as standalone pieces.
- * Each piece retains: geometry, material, textures, skinning data.
- * @returns Array of ClothingPiece objects
- */
-function extractClothingPieces(model) → [{
-  name: string,              // 'Shoes_01_CLOTH', 'Onepiece_00_CLOTH_01', etc.
-  category: string,          // Inferred: 'shoes', 'top', 'bottom', 'onepiece', 'accessory', 'socks', 'gloves'
-  mesh: THREE.SkinnedMesh,   // Detached from parent, still skinned to J_Bip
-  material: THREE.Material,
-  triangleCount: number,
-  thumbnail: string | null   // Generated at extraction time
-}]
-```
-
-**Category inference from naming:**
-- `Shoes_*` → `'shoes'`
-- `Tops_*` → `'top'`
-- `Bottoms_*` → `'bottom'`
-- `Onepiece_*` → `'onepiece'` (may need manual subcategory: dress, pants, gloves, socks)
-- `Accessory_*` → `'accessory'`
-
-### 2.2 Clothing Application
-
-```javascript
-/**
- * Apply a clothing piece to a model.
- * The piece must be skinned to J_Bip skeleton (all VRoid clothing is).
- * @param {THREE.Object3D} model - Target VRM
- * @param {ClothingPiece} piece - Extracted clothing piece
- */
-function applyClothingPiece(model, piece) → void
-
-/**
- * Remove a clothing piece from a model by name.
- */
-function removeClothingPiece(model, pieceName) → void
-
-/**
- * Toggle visibility of a clothing piece (cheaper than add/remove).
- */
-function toggleClothingVisibility(model, pieceName, visible) → void
-
-/**
- * List currently equipped clothing pieces.
- */
-function getEquippedClothing(model) → ClothingPiece[]
-```
-
-### 2.3 Hair Swap
-
-```javascript
-/**
- * Replace the Hair mesh on a model with hair from a donor VRM.
- * Transfers: geometry, materials, textures.
- * Rebinds: to target skeleton (same J_Bip names).
- * Preserves: spring bone chains if present.
- * @param {THREE.Object3D} target - Model receiving new hair
- * @param {THREE.Object3D} donor - VRM containing desired hair
- */
-function swapHair(target, donor) → void
-```
-
----
-
-## 3. Identity & Body Reconstruction
-
-**New file:** `src/library/vrmIdentityManager.js`
-
-### 3.1 Identity Extraction
-
-```javascript
-/**
- * Extract everything that makes this avatar "me" — independent of clothing and body mesh.
- * @returns {AvatarIdentity} Serializable identity object
- */
-function extractIdentity(model) → {
-  // Face (entire mesh object — always separate, always preserved)
-  faceMesh: THREE.Mesh,          // Clone of face mesh with all 7-8 prims
-  faceMorphTargets: string[],    // All 57 Fcl_* morph target names
-  faceMaterials: [{              // Material snapshot per face prim
-    name: string,
-    color: string,               // Hex
-    shadeColor: string,          // Hex (MToon)
-    texture: Blob | null,        // PNG blob if custom
-    properties: object           // MToon uniforms snapshot
-  }],
-
-  // Hair
-  hairMesh: THREE.Mesh | null,   // Clone of hair mesh
-  hairMaterial: {
-    color: string,
-    texture: Blob | null,
-    properties: object
-  },
-  hairBackMesh: THREE.Mesh | null, // Clone of HairBack prim from Body
-
-  // Skeleton
-  boneTransforms: Map<string, {x, y, z}>,  // All 52 J_Bip rest positions
-  springBoneConfig: object,      // J_Sec chain parameters
-
-  // Body Material (critical for reconstruction)
-  bodyMaterial: {
-    color: string,               // Body_00_SKIN base tint
-    shadeColor: string,          // MToon shade color
-    texture: Blob | null,        // Custom skin texture if any
-    nailColor: string | null,    // Extracted nail color
-    tattooOverlay: Blob | null,  // Tattoo/body paint layer if any
-    properties: object           // Full MToon uniform snapshot
-  },
-
-  // Metadata
-  gender: 'masculine' | 'feminine',
-  sourceClothingMode: 'A' | 'B' | 'nude',
-  extractedAt: number            // Timestamp
+  dispose(): void {
+    // Reverse order disposal (Glitch pattern)
+    this.sidebar?.dispose();
+    this.manifestAssembler?.dispose();
+    this.skinCompositor?.dispose();
+    this.clothingManager?.dispose();
+    this.materialEditor?.dispose();
+    this.vrmAnalyzer?.dispose();
+    this.catalogLoader?.dispose();
+    this.camera?.dispose();
+    this.background?.dispose();
+    this.lighting?.dispose();
+    this.avatarEngine?.dispose();
+    this.state = 'disposed';
+  }
 }
 ```
 
-### 3.2 Body Reconstruction
+---
 
-```javascript
-/**
- * Reconstruct an avatar from identity + nude base + new clothing.
- *
- * Pipeline:
- * 1. Load canonical nude base VRM (masc or fem)
- * 2. Replace face mesh with identity's face
- * 3. Replace hair mesh with identity's hair
- * 4. Apply bone transforms from identity
- * 5. Apply body material properties from identity (skin tone, nail color, etc.)
- * 6. Apply spring bone configuration
- * 7. Optionally apply new clothing pieces
- *
- * @param {AvatarIdentity} identity - Extracted identity
- * @param {ClothingPiece[]} clothing - New clothing to apply (optional)
- * @returns {THREE.Object3D} Reconstructed VRM model
- */
-async function reconstructAvatar(identity, clothing = []) → THREE.Object3D
+## 5. VRM Analysis (`avatar/VRMAnalyzer.ts`)
+
+Detects VRM internal structure by material naming convention. Port of `vrmMaterialEditor.js → analyzeVRM()`.
+
+### VRMStructure Type
+
+```typescript
+interface VRMStructure {
+  clothingMode: 'A' | 'B' | 'nude';
+  bodyPrimitives: PrimInfo[];
+  facePrimitives: PrimInfo[];
+  hairMesh: Mesh | null;
+  morphTargets: string[];           // 57 Fcl_* expression morph names
+  skeleton: Skeleton;               // 52 J_Bip bones
+  springBoneChains: string[];       // J_Sec chain names
+  gender: 'masculine' | 'feminine';
+}
+
+interface PrimInfo {
+  name: string;                     // e.g. 'Body_00_SKIN', 'Shoes_01_CLOTH'
+  type: 'skin' | 'cloth' | 'hair' | 'eye' | 'mouth' | 'brow' | 'lash' | 'line';
+  material: Material;
+  mesh: Mesh;
+  vertexCount: number;
+}
 ```
 
-**Canonical nude bases:**
-- `public/vRoidModels/bases/nude-feminine.vrm` — Unclothed feminine VRM (full body geometry)
-- `public/vRoidModels/bases/nude-masculine.vrm` — Unclothed masculine VRM (full body geometry)
+### Detection Logic
 
-These must be exported from VRoid Studio with **no clothing** to ensure Body_00_SKIN is complete (no cutaways).
+```typescript
+// Classify each mesh/submesh by material name:
+//   *_CLOTH → type: 'cloth'
+//   *_SKIN  → type: 'skin'
+//   *_HAIR  → type: 'hair'
+//   *_EYE   → type: 'eye'
+//   FaceMouth* → type: 'mouth'
+//   FaceBrow*  → type: 'brow'
 
-### 3.3 Identity Serialization
+// Determine clothingMode:
+//   has CLOTH prims → 'A'
+//   SKIN tri count > 9000, no CLOTH → 'B' (baked)
+//   SKIN tri count < 9000, no CLOTH → 'nude'
 
-```javascript
-/**
- * Serialize identity to JSON + binary blobs for storage.
- * Materials and textures serialized as base64 in JSON.
- * Used for wardrobe persistence (ADR-005 metadata JSONB).
- */
-function serializeIdentity(identity) → { json: string, blobs: Map<string, Blob> }
+// Infer gender from eyelash presence + spring bone count
+```
 
-/**
- * Deserialize identity from stored format.
- */
-function deserializeIdentity(json, blobs) → AvatarIdentity
+### Babylon.js vs Three.js Mapping
+
+| Three.js | Babylon.js | Notes |
+|----------|-----------|-------|
+| `THREE.SkinnedMesh` | `BABYLON.Mesh` with `skeleton` | Babylon meshes optionally have skeletons |
+| `mesh.geometry.groups` | `mesh.subMeshes` | SubMesh = glTF primitive |
+| `THREE.Skeleton` | `BABYLON.Skeleton` | Same concept, different API |
+| `mesh.material[i]` | `MultiMaterial.subMaterials[i]` | Babylon uses MultiMaterial for multi-prim meshes |
+| `material.uniforms.litFactor` | `material.albedoColor` (PBR) | Direct property access on PBRMaterial |
+
+---
+
+## 6. Material Modification (`avatar/MaterialEditor.ts`)
+
+Port of `vrmMaterialEditor.js`. Same API surface, Babylon.js internals.
+
+### API
+
+```typescript
+class MaterialEditor {
+  // Tier 1: Material Color
+  setSkinTone(structure: VRMStructure, hex: string): void;
+  setEyeColor(structure: VRMStructure, hex: string): void;
+  setHairColor(structure: VRMStructure, hex: string): void;
+  setLipColor(structure: VRMStructure, hex: string): void;
+  setEyebrowColor(structure: VRMStructure, hex: string): void;
+  setNailColor(structure: VRMStructure, hex: string): void;
+  setClothingColor(structure: VRMStructure, primName: string, hex: string): void;
+
+  // Texture swap
+  swapTexture(prim: PrimInfo, texture: Texture): void;
+
+  // Getters
+  getSkinTone(structure: VRMStructure): Color3;
+  getEyeColor(structure: VRMStructure): Color3;
+  getHairColor(structure: VRMStructure): Color3;
+  getLipColor(structure: VRMStructure): Color3;
+
+  // Snapshot for undo/restore
+  snapshotMaterials(structure: VRMStructure): MaterialSnapshot;
+  restoreMaterials(structure: VRMStructure, snapshot: MaterialSnapshot): void;
+}
+```
+
+### MToon Shader Handling
+
+VRoid uses MToon with `litFactor` (main color) and `shadeColorFactor` (shadow tint):
+
+**Option A (preferred):** Use community `babylon-vrm-loader` if it supports MToon
+**Option B:** Convert to PBRMaterial on load, preserving shade ratio: `shade ≈ base × 0.8`
+
+### Linked Materials
+
+Skin tone must apply to both body and face simultaneously:
+- `Body_00_SKIN` + `Face_00_SKIN` → always set together
+
+Hair color applies to all HAIR materials:
+- `Hair001` mesh + `HairBack_00_HAIR` in body mesh
+
+---
+
+## 7. Clothing System (`avatar/ClothingManager.ts`)
+
+Port of `vrmClothingManager.js`. Mesh-level clothing operations.
+
+### API
+
+```typescript
+class ClothingManager {
+  // Extraction (from source VRM)
+  extractClothingPieces(structure: VRMStructure): ClothingPiece[];
+
+  // Application (to target avatar)
+  applyClothingPiece(targetSkeleton: Skeleton, piece: ClothingPiece): boolean;
+  removeClothingPiece(scene: Scene, pieceName: string): boolean;
+  toggleClothingVisibility(pieceName: string, visible: boolean): boolean;
+  getEquippedClothing(): EquippedItem[];
+
+  // Catalog-based loading
+  equipFromCatalog(itemId: string, targetSkeleton: Skeleton): Promise<boolean>;
+  unequipSlot(slot: ClothingSlot): boolean;
+
+  // Slot management (DRESSING_ROOM_SPEC §3.2)
+  handleOnepieceOverride(): void;  // Auto-unequip tops+bottoms when onepiece equipped
+}
+```
+
+### Skeleton Rebinding
+
+The critical algorithm that enables cross-avatar clothing (ADR-006):
+
+```typescript
+function rebindToSkeleton(clothMesh: Mesh, targetSkeleton: Skeleton): void {
+  // 1. Get bone indices from clothing mesh's original skeleton
+  // 2. For each bone index, look up the bone NAME from original skeleton
+  // 3. Find the bone with the same NAME in the target skeleton
+  // 4. Remap bone indices to target skeleton's indices
+  // 5. Reassign mesh.skeleton = targetSkeleton
+  //
+  // Works because ALL VRoid exports use identical 52 J_Bip bone names.
+  // Vertex weights reference bones by name — we just redirect which
+  // skeleton object provides each named bone.
+}
+```
+
+### ClothingPiece Type
+
+```typescript
+interface ClothingPiece {
+  name: string;          // 'Shoes_01_CLOTH'
+  slot: ClothingSlot;    // Inferred from material name
+  mesh: Mesh;            // Detached mesh with skinning data
+  material: Material;
+  vertexCount: number;
+  sourceFile: string;    // Catalog reference
+}
+
+type ClothingSlot =
+  | 'underpants' | 'undershirt' | 'socks'
+  | 'bottoms' | 'tops' | 'onepiece'
+  | 'shoes' | 'accessory_neck' | 'accessory_arm';
 ```
 
 ---
 
-## 4. Prebuilt Library
+## 8. Hair Swap (`avatar/HairSwapper.ts`)
 
-### 4.1 VRM Prebuilt Manifest
+```typescript
+class HairSwapper {
+  extractHair(donorContainer: AssetContainer): HairData;
+  applyHair(target: VRMStructure, hair: HairData): void;
+  swapFromCatalog(hairId: string, target: VRMStructure): Promise<void>;
+}
 
-**New file:** `public/vRoidModels/prebuilts.json`
+interface HairData {
+  frontMesh: Mesh;          // Hair001 mesh
+  backMesh: Mesh | null;    // HairBack prim from Body mesh
+  materials: Material[];
+  springBoneConfig: object; // J_Sec parameters for physics
+}
+```
 
-```json
-{
-  "version": 1,
-  "bases": {
-    "nude-feminine": {
-      "file": "bases/nude-feminine.vrm",
-      "thumbnail": "bases/nude-feminine.webp",
-      "gender": "feminine",
-      "boneTransforms": { "J_Bip_C_Hips": [0, 0.98, 0] }
+---
+
+## 9. Bone Proportions (`avatar/BoneEditor.ts`)
+
+```typescript
+class BoneEditor {
+  setHeight(skeleton: Skeleton, value: number): void;          // 0.7–1.3
+  setShoulderWidth(skeleton: Skeleton, value: number): void;   // 0.7–1.3
+  setArmLength(skeleton: Skeleton, value: number): void;       // 0.7–1.3
+  setLegLength(skeleton: Skeleton, value: number): void;       // 0.7–1.3
+  setNeckLength(skeleton: Skeleton, value: number): void;      // 0.7–1.3
+  setHeadScale(skeleton: Skeleton, value: number): void;       // 0.8–1.2
+
+  applyProportions(skeleton: Skeleton, proportions: Proportions): void;
+  extractProportions(skeleton: Skeleton): Proportions;
+}
+```
+
+### Bone → Property Mapping
+
+| Property | Bone(s) | Axis | Range |
+|----------|---------|------|-------|
+| Height | J_Bip_C_Hips | Y translation | 0.7 – 1.3 |
+| Shoulder Width | J_Bip_L/R_UpperArm | X translation | 0.7 – 1.3 |
+| Arm Length | J_Bip_L/R_LowerArm | Y translation | 0.7 – 1.3 |
+| Leg Length | J_Bip_L/R_LowerLeg | Y translation | 0.7 – 1.3 |
+| Neck Length | J_Bip_C_Neck | Y translation | 0.7 – 1.3 |
+| Head Scale | J_Bip_C_Head | Uniform scale | 0.8 – 1.2 |
+
+---
+
+## 10. Texture Compositing (`avatar/SkinCompositor.ts`)
+
+6-layer compositing stack (DRESSING_ROOM_SPEC §2.2).
+
+### Layer Stack
+
+```
+Layer 5: Temporary Effects    (mud, paint, zombie — session-only)
+Layer 4: Tattoos              (persistent, up to 8 simultaneous)
+Layer 3: Makeup               (lipstick, eyeshadow — per-outfit)
+Layer 2: Nail Polish          (color tint — per-outfit)
+Layer 1: Clothing Paint       (socks, underwear — texture-only items)
+Layer 0: Base Skin            (Body_00_SKIN / Face_00_SKIN)
+```
+
+### API
+
+```typescript
+class SkinCompositor {
+  setBaseSkin(preset: SkinPreset | Color3): void;
+  addClothingPaint(slot: string, texture: HTMLImageElement): void;
+  removeClothingPaint(slot: string): void;
+  setNailColor(hex: string): void;
+  addMakeup(region: MakeupRegion, style: string, color: string, opacity: number): void;
+  removeMakeup(region: MakeupRegion): void;
+  addTattoo(id: string, region: TattooRegion, texture: HTMLImageElement, opacity: number): void;
+  removeTattoo(id: string): void;
+  addTempEffect(id: string, texture: HTMLImageElement): void;
+  clearTempEffects(): void;
+  setCreativeSkin(skinId: string): void;
+
+  compose(): { bodyTexture: DynamicTexture; faceTexture: DynamicTexture };
+}
+```
+
+### Implementation
+
+OffscreenCanvas (2048×2048 body, 1024×1024 face). Alpha-blend layers bottom-to-top. Upload to GPU as DynamicTexture. Recomposite only on layer change (~2-5ms).
+
+---
+
+## 11. Manifest Assembly (`avatar/ManifestAssembler.ts`)
+
+Central orchestrator. Takes CHARACTER_MANIFEST JSON → builds live avatar.
+
+### Assembly Pipeline
+
+```typescript
+async assemble(manifest: CharacterManifest): Promise<void> {
+  // 1. Load nude base (nude-feminine.glb or nude-masculine.glb)
+  // 2. Apply proportions (BoneEditor)
+  // 3. Apply material colors (MaterialEditor)
+  // 4. Compose skin layers — tattoos, makeup, socks (SkinCompositor)
+  // 5. Swap hair (HairSwapper)
+  // 6. Equip clothing in slot order (ClothingManager)
+  // 7. Start idle animation + blink controller
+}
+
+// Serialize current state back to manifest
+extractManifest(): CharacterManifest;
+
+// Export assembled avatar as baked GLB
+async exportGLB(): Promise<ArrayBuffer>;
+```
+
+---
+
+## 12. 3D Viewport
+
+### DressingRoomCamera.ts
+
+ArcRotateCamera with orbit controls, zoom limits (1.5m–5m), vertical constraints. Panning disabled. Auto-focus methods for face/body/feet when switching UI sections.
+
+### LightingSetup.ts
+
+Studio lighting: hemisphere fill (cool blue-grey) + directional key (warm white, 45° front-right) + soft shadow on floor plane.
+
+### Background.ts
+
+Neutral gradient (dark bottom, lighter top) or simple room. Not the grid floor from Glitch.
+
+---
+
+## 13. UI Overlay (`hud/`)
+
+DOM-based sidebar, 320px wide. Same pattern as Glitch's HUD: inline CSS injection, pointer-events management, vanilla TypeScript.
+
+Three tabs: **Outfits** (default) | **Body** | **Wardrobe**
+
+See DRESSING_ROOM_SPEC.md §2 for detailed tab content specifications.
+
+### Reusable Components
+
+| Component | Purpose |
+|-----------|---------|
+| ThumbnailGrid | Outfit gallery, wardrobe items, hair selector |
+| ColorPicker | Preset swatches + custom `<input type="color">` |
+| SliderControl | Proportions with descriptive endpoints |
+| TabBar | Main tab switching |
+
+---
+
+## 14. World Integration (`bridge/`)
+
+### PostMessageBridge
+
+8 message types per DRESSING_ROOM_SPEC §7.2. Same implementation pattern as Glitch's PostMessageBridge.
+
+### Bootstrap
+
+```typescript
+if (isEmbedded()) {
+  bridge.onSpawn(async (payload) => {
+    await lifecycle.spawn(payload);
+    bridge.sendReady();
+  });
+} else {
+  await lifecycle.spawn(DEFAULT_MANIFEST);  // Standalone dev mode
+}
+```
+
+### AppearancePanel.ts (World)
+
+Two-tab panel: Outfits (inline quick swap) + Dressing Room (launch button). See DRESSING_ROOM_SPEC §7.1.
+
+---
+
+## 15. Asset Extraction Pipeline (`tools/`)
+
+Build-time Node.js scripts processing 220 VRM source files:
+
+```
+220 VRMs (3.5GB) → tools/ → 197 GLBs + 34 PNGs + 231 thumbnails + items.json
+```
+
+| Script | Input | Output |
+|--------|-------|--------|
+| `extract-clothing.mjs` | VRMs with CLOTH prims | Individual GLB per clothing piece |
+| `extract-textures.mjs` | Texture-only VRMs (socks, underwear) | Alpha-masked compositing PNGs |
+| `generate-thumbnails.mjs` | All items | 256×256 JPG per item |
+| `build-catalog.mjs` | All outputs above | `items.json` catalog manifest |
+
+Deploy to `/var/www/avatar/assets/` (Phase 1, static) or S3+CDN (Phase 2).
+
+---
+
+## 16. GLB Export
+
+Baked avatar for World consumption:
+
+1. `ManifestAssembler.exportGLB()` → ArrayBuffer (via @babylonjs/serializers)
+2. Generate thumbnail via `scene.tools.CreateScreenshot()`
+3. POST to `/nexus/avatars/upload` (multipart: GLB + thumbnail + manifest JSON)
+4. Server stores to S3, updates `users.avatar_url` + `users.avatar_config`
+5. WebSocket broadcast → all players in zone reload the avatar
+
+---
+
+## 17. Build Configuration
+
+### vite.config.ts
+
+```typescript
+export default defineConfig({
+  base: '/avatar/',
+  resolve: { alias: { '@avatar': resolve(__dirname, 'src') } },
+  server: { port: 3002, host: true },
+  build: {
+    target: 'es2022',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          babylonjs: ['@babylonjs/core', '@babylonjs/loaders', '@babylonjs/serializers'],
+        },
+      },
     },
-    "nude-masculine": {
-      "file": "bases/nude-masculine.vrm",
-      "thumbnail": "bases/nude-masculine.webp",
-      "gender": "masculine",
-      "boneTransforms": { "J_Bip_C_Hips": [0, 0.99, 0] }
-    }
   },
-  "prebuilts": [
-    {
-      "id": "fem-casual-01",
-      "name": "Casual Girl",
-      "file": "prebuilts/fem-casual-01.vrm",
-      "thumbnail": "prebuilts/fem-casual-01.webp",
-      "gender": "feminine",
-      "clothingMode": "A",
-      "tags": ["casual", "feminine", "starter"]
-    }
-  ],
-  "hair": [
-    {
-      "id": "hair-short-fem-01",
-      "name": "Short Bob",
-      "file": "hair/short-bob.vrm",
-      "thumbnail": "hair/short-bob.webp",
-      "gender": "feminine",
-      "tags": ["short", "bob"]
-    }
-  ],
-  "clothing": [
-    {
-      "id": "top-tshirt-01",
-      "name": "Basic Tee",
-      "file": "clothing/top-tshirt-01.glb",
-      "thumbnail": "clothing/top-tshirt-01.webp",
-      "category": "top",
-      "gender": "unisex",
-      "sourceVRM": "fem-casual-01",
-      "tags": ["casual", "basic"]
-    }
-  ],
-  "skins": [
-    {
-      "id": "skin-light-warm",
-      "name": "Light Warm",
-      "bodyTexture": "skins/light-warm-body.png",
-      "faceTexture": "skins/light-warm-face.png",
-      "baseColor": "#f5d0b0",
-      "shadeColor": "#c4a68c"
-    }
-  ]
-}
-```
-
-### 4.2 Building the Library
-
-Export from VRoid Studio in both modes:
-1. **Mode A exports** for each outfit (separate CLOTH prims) — these become both prebuilts and clothing source
-2. **Nude bases** (no clothing) — canonical bodies for reconstruction
-3. **Hair VRMs** — one VRM per hairstyle, used for hair swap donor
-
-Strip clothing from Mode A exports → save as individual `.glb` clothing pieces in `public/vRoidModels/clothing/`.
-
-**Recommended initial library size:**
-- 4 feminine prebuilts + 4 masculine prebuilts (varied faces/builds)
-- 2 nude bases (1 fem, 1 masc)
-- 8-12 hairstyles (mix of fem/masc/unisex)
-- 10-15 clothing pieces (tops, bottoms, shoes, dresses, swimwear)
-- 6-8 skin tone presets
-
----
-
-## 5. Appearance UI Updates
-
-### 5.1 Modified Pages
-
-**`src/pages/Appearance.jsx`** — Major rewrite. Currently trait-group based (Body, Head, Chest from manifest). Restructure to user-facing categories:
-
-```
-Appearance Page Layout:
-┌──────────────────────────────────────────────┐
-│  [3D Viewport - turntable, zoom, studio lit] │
-│                                              │
-├──────────────────────────────────────────────┤
-│  Category tabs:                              │
-│  [Avatar] [Skin] [Eyes] [Hair] [Lips] [Outfit] [Nails] │
-├──────────────────────────────────────────────┤
-│  Category-specific controls:                 │
-│                                              │
-│  [Avatar tab]: Prebuilt carousel + Upload    │
-│  [Skin tab]: Tone presets + color picker     │
-│  [Eyes tab]: Iris presets + color picker      │
-│  [Hair tab]: Style carousel + color picker   │
-│  [Lips tab]: Color picker + presets          │
-│  [Outfit tab]: Clothing grid + equip/remove  │
-│  [Nails tab]: Color picker                   │
-├──────────────────────────────────────────────┤
-│  [Save to World]  [Open in VRoid Studio]     │
-└──────────────────────────────────────────────┘
-```
-
-### 5.2 State Management
-
-Add to existing Zustand/context pattern:
-
-```javascript
-// New state for appearance editing
-{
-  // Current avatar analysis
-  vrmStructure: VRMStructure | null,    // From analyzeVRM()
-  currentIdentity: AvatarIdentity | null,
-
-  // Editing state
-  activeCategory: 'avatar' | 'skin' | 'eyes' | 'hair' | 'lips' | 'outfit' | 'nails',
-  skinTone: string,          // Hex
-  eyeColor: string,          // Hex
-  hairColor: string,         // Hex
-  lipColor: string,          // Hex
-  nailColor: string,         // Hex
-  selectedHairId: string,    // From prebuilts.json
-  equippedClothing: string[], // Array of clothing piece IDs
-
-  // Undo stack
-  undoStack: EditAction[],
-
-  // Dirty flag
-  hasUnsavedChanges: boolean
-}
-```
-
-### 5.3 Viewport
-
-Use the existing Three.js scene from `SceneContext`. Add:
-- **Studio lighting** preset (3-point light setup, better than default ambient)
-- **Turntable orbit** (drag to rotate, scroll to zoom)
-- **Camera presets**: Full body, Face closeup, Upper body, Feet
-- **Background**: Solid dark gradient or subtle environment
-
-The existing `characterManager.js` already handles VRM rendering via Three.js — we compose on top of it.
-
----
-
-## 6. Export Pipeline
-
-### 6.1 Save Flow
-
-```
-User clicks [Save to World]:
-  1. characterManager runs VRMExporter.parse() → GLB ArrayBuffer
-  2. Generate thumbnail (screenshotManager.getScreenshot()) → WebP Blob
-  3. POST /nexus/avatars/upload (multipart/form-data):
-     - file: avatar.glb
-     - thumbnail: portrait.webp
-     - metadata: JSON (identity summary, clothing list, bone transforms)
-  4. Server stores to S3, updates users.avatar_url
-  5. Emit localStorage event: avatar_updated = { url, timestamp }
-  6. World picks up change, reloads avatar via AvatarDriverFactory
-```
-
-### 6.2 Metadata Payload
-
-```json
-{
-  "gender": "feminine",
-  "clothingMode": "A",
-  "skinTone": "#f5d0b0",
-  "eyeColor": "#3a7d4e",
-  "hairStyle": "hair-short-fem-01",
-  "hairColor": "#2b1810",
-  "lipColor": "#c4556a",
-  "nailColor": "#ff2244",
-  "equippedClothing": ["top-tshirt-01", "bottom-jeans-01", "shoes-sneaker-01"],
-  "boneTransforms": {
-    "J_Bip_C_Hips": [0, 1.04, 0],
-    "J_Bip_L_UpperArm": [0.125, 0, 0]
+  optimizeDeps: {
+    include: ['@babylonjs/core', '@babylonjs/loaders', '@babylonjs/serializers'],
   },
-  "sourcePrebuilt": "fem-casual-01"
-}
-```
-
-This metadata enables re-editing without re-analyzing the GLB. Stored in `avatar_wardrobe.metadata` JSONB (ADR-005 Phase 2) or initially in a parallel JSON file on S3.
-
----
-
-## 7. World Integration
-
-### 7.1 Appearance Panel (World Side)
-
-**File:** `World/src/ui/shelves/panels/AppearancePanel.ts`
-
-Replace the "Coming Soon" stub with a lightweight panel. Phase 1 scope for the World shelf panel is intentionally limited — deep customization happens in Avatar app.
-
-```typescript
-class AppearancePanel implements IShelfPanel {
-  // Quick controls only:
-  // - Avatar swap carousel (reuse AvatarSelectionModal logic)
-  // - Skin tone picker (6-8 presets)
-  // - Hair color picker
-  // - Eye color picker
-  // - "Open Avatar Studio" button → window.open(avatarAppUrl)
-
-  // Communication with Avatar app:
-  // - Write to localStorage: avatar_pending_changes
-  // - Listen for localStorage: avatar_updated
-  // - Dispatch custom event: avatar:swap { url }
-}
-```
-
-### 7.2 Avatar Swap Event
-
-World already supports hot-reload via `AvatarDriverFactory`. The communication pattern:
-
-```typescript
-// Avatar app (or Appearance panel) signals a swap:
-window.dispatchEvent(new CustomEvent('avatar:swap', {
-  detail: { url: 'https://s3.../avatars/user123.glb', format: 'glb' }
-}));
-
-// World's scene manager listens and reloads:
-window.addEventListener('avatar:swap', async (e) => {
-  const { url, format } = e.detail;
-  const driver = AvatarDriverFactory.createDriver(url, format);
-  await driver.load(url, scene, options);
-  // Dispose old driver, update state
+  assetsInclude: ['**/*.glb', '**/*.vrm'],
 });
 ```
 
-### 7.3 Upload Endpoint
+### tsconfig.json
 
-**Endpoint:** `POST /nexus/avatars/upload`
-
-```
-Request: multipart/form-data
-  - file: avatar.glb (required, <50MB)
-  - source: avatar.vrm (optional, <100MB, for re-editing)
-  - thumbnail: portrait.webp (optional, <2MB)
-  - metadata: JSON string (optional)
-
-Response: {
-  avatar_url: "https://s3.../avatars/{userId}.glb",
-  source_url: "https://s3.../avatars/{userId}.vrm",
-  thumbnail_url: "https://s3.../thumbnails/{userId}.webp"
+```json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "paths": { "@avatar/*": ["./src/*"] }
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist", "tools"]
 }
+```
 
-Side effects:
-  - UPDATE users SET avatar_url = $avatar_url WHERE id = $userId
+### Core Dependencies
+
+```
+@babylonjs/core ^8.0.0
+@babylonjs/loaders ^8.0.0
+@babylonjs/serializers ^8.0.0
+typescript ^5.4.0
+vite ^6.0.0
 ```
 
 ---
 
-## 8. File Inventory
+## 18. Implementation Sprints
 
-### New Files (Avatar App)
+### Sprint 0: Project Scaffold
+Vite + Babylon + TS. Load and display a VRM. Orbit camera. Studio lighting.
+**Deliverable:** VRM mannequin visible, orbit works, dev server at localhost:3002.
 
-| File | Purpose | Priority |
-|------|---------|----------|
-| `src/library/vrmMaterialEditor.js` | Structure detection + material modification API | P0 |
-| `src/library/vrmClothingManager.js` | Clothing extraction, application, toggle | P0 |
-| `src/library/vrmIdentityManager.js` | Identity extraction + body reconstruction | P1 |
-| `public/vRoidModels/prebuilts.json` | Prebuilt library manifest | P0 |
-| `public/vRoidModels/bases/` | Canonical nude base VRMs | P0 |
-| `public/vRoidModels/prebuilts/` | Curated prebuilt VRMs | P0 |
-| `public/vRoidModels/hair/` | Swappable hair VRMs | P1 |
-| `public/vRoidModels/clothing/` | Extracted clothing pieces (GLB) | P1 |
-| `public/skins/` | Skin tone texture presets | P1 |
+### Sprint 1: VRM Analysis + Material Editing
+VRMAnalyzer + MaterialEditor. Minimal sidebar with color pickers.
+**Deliverable:** Change avatar skin/eye/hair/lip color via sidebar controls.
 
-### Modified Files (Avatar App)
+### Sprint 2: Clothing System + Hair Swap
+ClothingManager + HairSwapper + skeleton rebinding. WardrobeTab.
+**Deliverable:** Click clothing thumbnail → equips. Click hair → swaps.
 
-| File | Change | Priority |
-|------|--------|----------|
-| `src/pages/Appearance.jsx` | Major rewrite — category-based UI | P0 |
-| `src/library/characterManager.js` | Add material swap + clothing methods | P0 |
-| `src/context/SceneContext.jsx` | Add appearance editing state | P1 |
+### Sprint 3: Texture Compositing + Bone Proportions
+SkinCompositor + BoneEditor. BodyTab with sliders and tattoo/makeup UI.
+**Deliverable:** Tattoo + height adjust + socks = all visible simultaneously.
 
-### Modified Files (World)
+### Sprint 4: Manifest Assembly + Outfit Save/Load
+ManifestAssembler + CatalogLoader. OutfitsTab with gallery.
+**Deliverable:** Save outfit → reload → restores from manifest.
 
-| File | Change | Priority |
-|------|--------|----------|
-| `World/src/ui/shelves/panels/AppearancePanel.ts` | Replace stub with quick controls | P1 |
+### Sprint 5: World Integration
+PostMessageBridge + EmbedDetection + AppearancePanel. GLB export.
+**Deliverable:** Enter Dressing Room from World → customize → return → others see change.
 
-### Assets to Export from VRoid Studio
+### Sprint 6: Asset Extraction + Catalog Deploy
+Build-time tools: extract 220 VRMs → GLBs + PNGs + thumbnails + items.json.
+**Deliverable:** Full clothing catalog browsable in WardrobeTab.
 
-| Asset | Count | Source |
-|-------|-------|--------|
-| Nude base (fem) | 1 | VRoid export, no clothing |
-| Nude base (masc) | 1 | VRoid export, no clothing |
-| Prebuilt avatars | 8 | VRoid export, Mode A, varied faces/builds |
-| Hairstyles | 8-12 | VRoid export, one per style |
-| Clothing pieces | 10-15 | Extracted from Mode A exports |
-| Skin tone textures | 6-8 | Painted or generated |
+### Sprint 7: Polish + Production
+Debug keys, error handling, performance profiling, production deploy to poqpoq.com/avatar/.
 
 ---
 
-## 9. Implementation Order
+## 19. Risks & Mitigations
 
-### Sprint 1: Foundation (Week 1-2)
-
-1. **vrmMaterialEditor.js** — `analyzeVRM()` + `setSkinTone()` + `setEyeColor()` + `setHairColor()`
-2. **prebuilts.json** — Initial manifest with 2-4 prebuilts
-3. **Appearance.jsx** — Category tabs, skin/eye/hair color pickers wired to vrmMaterialEditor
-4. Export nude bases from VRoid Studio
-
-### Sprint 2: Clothing (Week 3-4)
-
-5. **vrmClothingManager.js** — `extractClothingPieces()` + `toggleClothingVisibility()` + `applyClothingPiece()`
-6. **Appearance.jsx** — Outfit tab with equip/remove grid
-7. Export 8 prebuilts as Mode A, strip clothing pieces
-8. Hair swap (`swapHair()`)
-
-### Sprint 3: Reconstruction & Polish (Week 5-6)
-
-9. **vrmIdentityManager.js** — `extractIdentity()` + `reconstructAvatar()`
-10. **Appearance.jsx** — Lip color, nail color, cheek color
-11. Viewport: studio lighting, camera presets, turntable
-12. Save-to-World flow (export + upload + avatar_url update)
-
-### Sprint 4: World Integration (Week 7-8)
-
-13. **AppearancePanel.ts** — Quick controls in World's shelf
-14. Avatar swap event system (`avatar:swap` custom event)
-15. Upload endpoint (`POST /nexus/avatars/upload`)
-16. End-to-end test: create in Avatar app → save → appear in World
+| Risk | Mitigation |
+|------|------------|
+| MToon shader unavailable in Babylon.js 8.x | PBR conversion with shade ratio; investigate community VRM loader |
+| VRM spring bones (hair physics) | Custom spring solver or accept static hair Phase 1 |
+| Texture compositing slow on mobile | Smaller canvas fallback (1024); batch layer changes |
+| Cross-gender clothing clipping | Gender tag on items; allow but warn |
+| GLB export breaks material appearance | Test export pipeline early; preserve material properties |
 
 ---
 
-## 10. Key Risks & Mitigations
+## 20. References
 
-| Risk | Impact | Mitigation |
-|------|--------|------------|
-| Mode A body has cutaways under clothing | Outfit changes show holes | Body reconstruction from nude base (Tier 3.5) |
-| Bone transforms from tall char distort slim base | Reconstruction looks wrong | Test with extreme configs; constrain adjustment ranges |
-| MToon shade color ratio varies across VRMs | Skin tone looks wrong on some models | Capture full MToon uniform snapshot, not just base color |
-| Hair swap breaks spring bones | Hair goes rigid | Transfer J_Sec chains with hair mesh; fallback to static |
-| Clothing pieces from different proportions clip | Outfit looks bad | Document fit quality matrix; warn on extreme mismatch |
-| VRM file size exceeds S3 upload limit | Save fails | Client-side validation, texture atlas optimization |
+### Specifications
+- [DRESSING_ROOM_SPEC.md](DRESSING_ROOM_SPEC.md) — Feature spec, UX, slot system, compositing
+- [CHARACTER_MANIFEST_SPEC.md](CHARACTER_MANIFEST_SPEC.md) — JSON format, NEXUS integration, assembly
+- [ADR-001](adr/ADR-001-VRM-POST-IMPORT-MODIFICATION.md) — VRM modification tiers
+- [ADR-004](adr/ADR-004-APPEARANCE-TAB-INTEGRATION.md) — World shelf integration
+- [ADR-005](adr/ADR-005-AVATAR-STORAGE-AND-IDENTITY.md) — Storage strategy
+- [ADR-006](adr/ADR-006-UNIFIED-SKELETON-CONTRACT.md) — Skeleton contract, bone mapping
 
----
+### Architecture Reference
+- Glitch repo: `../glitch/` — Babylon.js patterns (engine, lifecycle, HUD, bridge)
+- World repo: `../../World/` — AppearancePanel stub, AvatarDriverFactory
 
-## 11. Phase 1 Decisions That Constrain Later Phases
+### Preserved Code (Port Targets)
+- `avatar-preserved/library/vrmMaterialEditor.js` — Material modification API (Three.js → port)
+- `avatar-preserved/library/vrmClothingManager.js` — Clothing system API (Three.js → port)
 
-| Decision | Affects | Why It Matters |
-|----------|---------|----------------|
-| Clothing pieces stored as standalone GLBs skinned to J_Bip | Phase 3 SuperMesh clothing | SuperMesh skeleton is a J_Bip superset — Phase 1 clothing pieces will still bind, but won't use twist/helper bones. Phase 3 clothing needs separate higher-fidelity exports. |
-| Identity serialization format (JSON + blobs) | Phase 2 wardrobe DB schema | The `metadata` JSONB in `avatar_wardrobe` (ADR-005) must accommodate this format. Design the serialization now so Phase 2 doesn't require migration. |
-| `prebuilts.json` manifest structure | Phase 2 AI mesh + Phase 3 marketplace | Add `avatarType` field now (`'vrm'`) even though Phase 1 only has VRM. Phase 2 adds `'ai_mesh'`, Phase 3 adds `'supermesh'`. |
-| `analyzeVRM()` detection by naming convention | Phase 2 AI mesh (no naming convention) | AI meshes won't have `_CLOTH` / `_SKIN` naming. Phase 2 needs a separate `analyzeAIMesh()` or a generic detector. Keep VRM detection isolated. |
-| Nude base bodies as canonical reconstruction targets | Phase 3 SuperMesh body morphs | SuperMesh won't need reconstruction — it has proper morph targets. But the identity extraction concept (face + materials + bone transforms) carries forward as the "save what makes you YOU" primitive. |
-| `avatar:swap` custom event for World communication | All future phases | This event contract becomes the stable API between Avatar app and World. Keep the payload minimal and extensible: `{ url, format, metadata? }`. |
+### Assets
+- `avatar-preserved/assets/vRoidModels/` — 220 VRM source files (complete collection)
+- 197 unique CLOTH meshes + 34 texture-only garments (verified via fingerprinting)
 
 ---
 
-## References
-
-- ADR-001: VRM Post-Import Modification (`docs/adr/ADR-001-VRM-POST-IMPORT-MODIFICATION.md`)
-- ADR-004: Appearance Tab Integration (`docs/adr/ADR-004-APPEARANCE-TAB-INTEGRATION.md`)
-- ADR-005: Avatar Storage & Identity (`docs/adr/ADR-005-AVATAR-STORAGE-AND-IDENTITY.md`)
-- Existing characterManager: `src/library/characterManager.js` (1,875 lines)
-- Existing VRMExporter: `src/library/VRMExporter.js` (919 lines)
-- Existing Appearance page: `src/pages/Appearance.jsx` (560 lines)
-- World IAvatarDriver: `World/src/avatars/IAvatarDriver.ts`
-- World AppearancePanel stub: `World/src/ui/shelves/panels/AppearancePanel.ts`
-- World InventoryTypes: `World/src/inventory/InventoryTypes.ts`
-- Skinner prim isolation evidence: `public/vRoidModelPuffPantsSkinnerTestPix/`
-- VRM model analysis data: `public/vRoidModels/` (bT.vrm, shortPantsWithNeckAcc.vrm, baseMale.vrm, baseMale2.vrm, Pinkie.vrm)
-
----
-
-_Last Updated: 2026-02-26_
+_Last Updated: 2026-02-27_
