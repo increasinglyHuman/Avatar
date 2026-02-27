@@ -291,10 +291,17 @@ Used for: lip sync, emotes, idle blink animation. NOT used for structural face c
 
 ## 5. The Private Dressing Room Environment
 
-### 5.1 Entry Flow
+### 5.1 Two Ways to Change Clothes
 
+**Quick Swap (stays in World):**
 ```
-World (3D scene) → Left shelf → Appearance tab → "Enter Dressing Room"
+World → Appearance tab → Outfits sub-tab → click thumbnail → done
+```
+No transition, no iframe. Avatar updates in-place. Everyone sees it.
+
+**Full Dressing Room (private Glitch session):**
+```
+World → Appearance tab → Dressing Room sub-tab → "Enter Dressing Room"
         │
         ▼
 World pauses player visibility (other players see you vanish)
@@ -315,6 +322,8 @@ Player customizes freely (nude, try on, experiment)
         ▼
 World receives update → applies to player avatar → broadcasts to zone
 ```
+
+Most daily use will be Quick Swap. The full Dressing Room is for building new outfits, body tweaking, and browsing the wardrobe.
 
 ### 5.2 3D Environment
 
@@ -437,13 +446,50 @@ The current outfit — the "COF" (Current Outfit Folder) equivalent. Same format
 
 ### 7.1 Appearance Panel (World Shelf)
 
-Replace the current stub (`AppearancePanel.ts`) with three entry points:
+Replace the current stub (`AppearancePanel.ts`) with a two-tab panel plus an avatar chooser button:
 
-| Button | Action | Scope |
-|--------|--------|-------|
-| "Enter Dressing Room" | Launch Glitch iframe with full customization UI | Full experience |
-| "Quick Outfit Swap" | Inline outfit gallery in the shelf panel itself | Fast outfit change without leaving World |
-| "Choose Avatar" | Modal for selecting a different base VRM | Sidecar — separate from dress-up |
+```
++------------------------------------------+
+| [Outfits]  [Dressing Room]               |
++------------------------------------------+
+|                                          |
+|  (tab content — see below)               |
+|                                          |
++------------------------------------------+
+| [Choose Avatar...]                       |
++------------------------------------------+
+```
+
+#### Tab: Outfits (Default — Quick Swap)
+
+A thumbnail gallery of saved outfits **rendered directly in the shelf panel**. This is the fast path — you never leave the World.
+
+- 2-column thumbnail grid of all saved outfits
+- Click a thumbnail → avatar swaps **in-place** in the World scene
+- Other players see the change immediately (broadcast via WebSocket)
+- Currently worn outfit shows "(worn)" badge
+- No privacy, no Glitch iframe, no transition — just a quick costume change
+- Context menu on each outfit: "Wear", "Rename", "Delete"
+- "Save Current Look" button at bottom → snapshots current avatar → adds to gallery
+
+This mirrors the Phoenix Viewer outfit gallery: always accessible, one click to swap, minimal friction. The "I'm running late, need to change" flow.
+
+#### Tab: Dressing Room (Full Experience)
+
+A launch button + brief description:
+
+- **"Enter Dressing Room"** button → launches the full Glitch-based private environment
+- Below the button: mini-summary of what you'll find inside (outfit building, wardrobe browsing, body/vanity tweaking)
+- When dressing room is active, tab shows "Currently in Dressing Room..." with a "Return to World" option
+- The dressing room is the full three-pillar experience (Outfits + Body + Wardrobe) as described in Sections 2-6
+
+Why a separate launch? Privacy. In the dressing room you can strip nude, try on underwear, experiment freely. The quick swap tab just does atomic outfit changes — no nudity, no experimentation.
+
+#### Bottom: Choose Avatar
+
+- Not a tab — a standalone button at the bottom of the panel
+- Opens a modal overlay with prebuilt avatar selection (like SL's avatar chooser)
+- Separate concern from outfit management — this changes your entire base model
 
 ### 7.2 PostMessage Protocol (Dressing Room ↔ World)
 
