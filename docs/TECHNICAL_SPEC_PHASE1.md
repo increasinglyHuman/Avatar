@@ -339,16 +339,34 @@ class MaterialEditor {
 }
 ```
 
-### Shader Strategy (Open — needs exploration)
+### Shader Strategy: PBR Everywhere
 
-VRoid exports with MToon (toon shader) using `litFactor` (main color) and `shadeColorFactor` (shadow tint). But we may NOT want toon rendering — explore options:
+**Decision: PBR.** The World renders all avatars with PBRMaterial (via Babylon's glTF loader). The Dressing Room must match — what you see is what others see.
 
-**Option A:** PBRMaterial conversion — convert MToon → PBR on load, preserving shade ratio (`shade ≈ base × 0.8`). Standard Babylon PBR look.
-**Option B:** Community `babylon-vrm-loader` if it supports MToon faithfully. Keeps VRoid's toon look.
-**Option C:** Custom shader (Node Material Editor) — design our own look that suits poqpoq World's aesthetic.
-**Option D:** Offer multiple shader presets — "Toon", "Realistic PBR", "Stylized" — player picks their avatar rendering style.
+VRoid exports with MToon (toon shader) using `litFactor` and `shadeColorFactor`. On load, convert to PBR:
 
-**Decision needed Sprint 0/1** — explore what looks best on our avatars in the World's lighting context. The shader choice affects the entire avatar aesthetic.
+```typescript
+// MToon → PBR conversion on VRM load
+function convertMToonToPBR(mtoonMat: Material): PBRMaterial {
+  const pbr = new PBRMaterial(mtoonMat.name, scene);
+  pbr.albedoColor = mtoonMat.litFactor;           // main color → albedo
+  pbr.albedoTexture = mtoonMat.litTexture;         // diffuse map
+  pbr.metallic = 0;                                // skin/cloth are non-metallic
+  pbr.roughness = 0.7;                             // matte default (tunable per slot)
+  // Preserve shade ratio for ambient: shade ≈ base × 0.8
+  pbr.ambientColor = mtoonMat.shadeColorFactor ?? mtoonMat.litFactor.scale(0.8);
+  return pbr;
+}
+```
+
+**Roughness hints by slot:**
+- Skin: 0.65 (slight subsurface feel)
+- Hair: 0.45 (some sheen)
+- Cloth: 0.7–0.9 (matte cotton to rough denim)
+- Shoes: 0.3–0.6 (leather shine to canvas)
+- Eyes: 0.1 (wet, glossy)
+
+World's `WebGPUMaterialFix.ts` and `CharacterLightingRig.ts` already handle PBR correctly — avatar will look identical in both contexts.
 
 ### Linked Materials
 
@@ -760,7 +778,7 @@ Debug keys, error handling, performance profiling, production deploy to poqpoq.c
 
 | Risk | Mitigation |
 |------|------------|
-| Shader aesthetic choice | Explore PBR vs toon vs custom in Sprint 0; test in World lighting context |
+| MToon → PBR conversion fidelity | Tune roughness/ambient per slot in Sprint 0; compare against VRoid original |
 | VRM spring bones (hair physics) | Custom spring solver or accept static hair Phase 1 |
 | Texture compositing slow on mobile | Smaller canvas fallback (1024); batch layer changes |
 | Cross-gender clothing clipping | Gender tag on items; allow but warn |
