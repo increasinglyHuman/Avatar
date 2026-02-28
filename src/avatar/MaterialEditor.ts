@@ -1,49 +1,136 @@
 import { Color3 } from '@babylonjs/core';
+import type { PBRMaterial, Scene } from '@babylonjs/core';
 import type {
   VRMStructure,
   MaterialSnapshot,
   MaterialColorSnapshot,
 } from '../types/index.js';
-import type { PBRMaterial } from '@babylonjs/core';
+import { TextureRecolorizer } from './TextureRecolorizer.js';
 
 /**
- * Stateless material color editor for VRM avatars.
- * All methods take VRMStructure as parameter — no stored refs.
+ * Material color editor for VRM avatars.
+ *
+ * Skin and hair use HSL texture remapping (TextureRecolorizer) for
+ * dramatic color changes that preserve baked detail.
+ * Eyes and lips use simple albedoColor multiplication.
  */
 export class MaterialEditor {
-  setSkinTone(structure: VRMStructure, hex: string): void {
-    const color = Color3.FromHexString(hex);
-    this.applyColor(structure.materialRefs.bodySkin, color);
-    this.applyColor(structure.materialRefs.faceSkin, color);
+  private recolorizer = new TextureRecolorizer();
+  private scene: Scene | null = null;
+
+  private currentSkinHex: string | null = null;
+  private currentHairHex: string | null = null;
+
+  /**
+   * Pre-cache original texture pixels for skin and hair materials.
+   * Must be called after VRM load, before any color editing.
+   */
+  async initTextureCache(
+    structure: VRMStructure,
+    scene: Scene,
+  ): Promise<void> {
+    this.scene = scene;
+
+    const skinMats = [
+      ...structure.materialRefs.bodySkin,
+      ...structure.materialRefs.faceSkin,
+    ];
+    const hairMats = structure.materialRefs.hair;
+
+    for (const mat of skinMats) {
+      if (mat.albedoTexture) {
+        await this.recolorizer.cacheOriginalTexture(mat.name, mat.albedoTexture);
+      }
+    }
+    for (const mat of hairMats) {
+      if (mat.albedoTexture) {
+        await this.recolorizer.cacheOriginalTexture(mat.name, mat.albedoTexture);
+      }
+    }
+
+    const cached = skinMats.filter((m) => this.recolorizer.hasCached(m.name)).length
+      + hairMats.filter((m) => this.recolorizer.hasCached(m.name)).length;
+    console.log(`[MaterialEditor] Texture cache: ${cached} materials ready for HSL remapping`);
   }
+
+  // ---------------------------------------------------------------------------
+  // Skin — HSL texture remapping
+  // ---------------------------------------------------------------------------
+
+  async setSkinTone(structure: VRMStructure, hex: string): Promise<void> {
+    this.currentSkinHex = hex;
+    const target = TextureRecolorizer.hexToHSLTarget(hex);
+    const mats = [
+      ...structure.materialRefs.bodySkin,
+      ...structure.materialRefs.faceSkin,
+    ];
+
+    for (const mat of mats) {
+      if (this.recolorizer.hasCached(mat.name) && this.scene) {
+        const tex = this.recolorizer.recolor(mat.name, target, this.scene);
+        if (tex) {
+          mat.albedoTexture = tex;
+          mat.albedoColor = Color3.White();
+        }
+      } else {
+        // Fallback for untextured materials
+        mat.albedoColor.copyFrom(Color3.FromHexString(hex));
+      }
+    }
+  }
+
+  getSkinTone(): string | null {
+    return this.currentSkinHex;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Hair — HSL texture remapping
+  // ---------------------------------------------------------------------------
+
+  async setHairColor(structure: VRMStructure, hex: string): Promise<void> {
+    this.currentHairHex = hex;
+    const target = TextureRecolorizer.hexToHSLTarget(hex);
+
+    for (const mat of structure.materialRefs.hair) {
+      if (this.recolorizer.hasCached(mat.name) && this.scene) {
+        const tex = this.recolorizer.recolor(mat.name, target, this.scene);
+        if (tex) {
+          mat.albedoTexture = tex;
+          mat.albedoColor = Color3.White();
+        }
+      } else {
+        mat.albedoColor.copyFrom(Color3.FromHexString(hex));
+      }
+    }
+  }
+
+  getHairColor(): string | null {
+    return this.currentHairHex;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Eyes & Lips — albedoColor multiplication (works fine for small areas)
+  // ---------------------------------------------------------------------------
 
   setEyeColor(structure: VRMStructure, hex: string): void {
     this.applyColor(structure.materialRefs.eyeIris, Color3.FromHexString(hex));
-  }
-
-  setHairColor(structure: VRMStructure, hex: string): void {
-    this.applyColor(structure.materialRefs.hair, Color3.FromHexString(hex));
   }
 
   setLipColor(structure: VRMStructure, hex: string): void {
     this.applyColor(structure.materialRefs.mouth, Color3.FromHexString(hex));
   }
 
-  getSkinTone(structure: VRMStructure): string | null {
-    return this.readColor(structure.materialRefs.bodySkin);
-  }
-
   getEyeColor(structure: VRMStructure): string | null {
     return this.readColor(structure.materialRefs.eyeIris);
-  }
-
-  getHairColor(structure: VRMStructure): string | null {
-    return this.readColor(structure.materialRefs.hair);
   }
 
   getLipColor(structure: VRMStructure): string | null {
     return this.readColor(structure.materialRefs.mouth);
   }
+
+  // ---------------------------------------------------------------------------
+  // Snapshot / Restore
+  // ---------------------------------------------------------------------------
 
   snapshot(structure: VRMStructure): MaterialSnapshot {
     return {
@@ -52,19 +139,49 @@ export class MaterialEditor {
       eyes: this.snapshotSlot(structure.materialRefs.eyeIris),
       hair: this.snapshotSlot(structure.materialRefs.hair),
       lips: this.snapshotSlot(structure.materialRefs.mouth),
+      skinSourceHex: this.currentSkinHex ?? undefined,
+      hairSourceHex: this.currentHairHex ?? undefined,
       timestamp: Date.now(),
     };
   }
 
-  restore(structure: VRMStructure, snap: MaterialSnapshot): void {
-    this.restoreSlot(
-      [...structure.materialRefs.bodySkin, ...structure.materialRefs.faceSkin],
-      snap.skin,
-    );
+  async restore(
+    structure: VRMStructure,
+    snap: MaterialSnapshot,
+  ): Promise<void> {
+    if (snap.skinSourceHex) {
+      await this.setSkinTone(structure, snap.skinSourceHex);
+    } else {
+      this.restoreSlot(
+        [...structure.materialRefs.bodySkin, ...structure.materialRefs.faceSkin],
+        snap.skin,
+      );
+    }
+
+    if (snap.hairSourceHex) {
+      await this.setHairColor(structure, snap.hairSourceHex);
+    } else {
+      this.restoreSlot(structure.materialRefs.hair, snap.hair);
+    }
+
     this.restoreSlot(structure.materialRefs.eyeIris, snap.eyes);
-    this.restoreSlot(structure.materialRefs.hair, snap.hair);
     this.restoreSlot(structure.materialRefs.mouth, snap.lips);
   }
+
+  // ---------------------------------------------------------------------------
+  // Cleanup
+  // ---------------------------------------------------------------------------
+
+  dispose(): void {
+    this.recolorizer.dispose();
+    this.scene = null;
+    this.currentSkinHex = null;
+    this.currentHairHex = null;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Private helpers
+  // ---------------------------------------------------------------------------
 
   private applyColor(materials: PBRMaterial[], color: Color3): void {
     for (const mat of materials) {

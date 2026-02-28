@@ -79,8 +79,9 @@ export class AvatarLifecycle {
           `hair=${this.vrmStructure.hairPrimitives.length}, cloth=${this.vrmStructure.clothPrimitives.length}`,
       );
 
-      // 4b. Material editor
+      // 4b. Material editor + texture cache for HSL remapping
       this.materialEditor = new MaterialEditor();
+      await this.materialEditor.initTextureCache(this.vrmStructure, scene);
 
       // 5. Camera (orbit around loaded model)
       this.camera = new DressingRoomCamera(scene, this.canvas);
@@ -251,6 +252,7 @@ export class AvatarLifecycle {
     }
 
     // Dispose in reverse order
+    this.materialEditor?.dispose();
     this.materialEditor = null;
     this.vrmStructure = null;
     this.sidebar?.dispose();

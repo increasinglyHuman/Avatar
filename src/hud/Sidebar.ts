@@ -105,6 +105,11 @@ const SIDEBAR_STYLES = `
   .swatch.active {
     border-color: #fff;
   }
+  .swatch--skin {
+    width: 44px;
+    height: 44px;
+    border-radius: 6px;
+  }
   .custom-row {
     display: flex;
     align-items: center;

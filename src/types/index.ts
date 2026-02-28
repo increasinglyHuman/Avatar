@@ -88,6 +88,10 @@ export interface MaterialSnapshot {
   eyes: MaterialColorSnapshot[];
   hair: MaterialColorSnapshot[];
   lips: MaterialColorSnapshot[];
+  /** Hex used for HSL texture remapping (skin). */
+  skinSourceHex?: string;
+  /** Hex used for HSL texture remapping (hair). */
+  hairSourceHex?: string;
   timestamp: number;
 }
 

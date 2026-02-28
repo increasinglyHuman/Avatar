@@ -1,5 +1,5 @@
 import type { MaterialEditor } from '../avatar/MaterialEditor.js';
-import type { VRMStructure, ColorPreset } from '../types/index.js';
+import type { VRMStructure, ColorPreset, SkinPreset } from '../types/index.js';
 import {
   SKIN_PRESETS,
   EYE_PRESETS,
@@ -7,12 +7,13 @@ import {
   LIP_PRESETS,
 } from '../types/index.js';
 
-type SetColorFn = (structure: VRMStructure, hex: string) => void;
-type GetColorFn = (structure: VRMStructure) => string | null;
+type SetColorFn = (structure: VRMStructure, hex: string) => void | Promise<void>;
+type GetColorFn = () => string | null;
 
 /**
  * Body tab — skin, eye, hair, lip color pickers with preset swatches.
- * Connects to MaterialEditor for real-time 3D preview.
+ * Skin and hair use async HSL texture remapping for dramatic changes.
+ * Eyes and lips use direct albedoColor multiplication.
  */
 export class BodyTab {
   private root: HTMLDivElement;
@@ -51,19 +52,23 @@ export class BodyTab {
     this.root.innerHTML = '';
 
     this.addSkinSection();
+    this.addAsyncColorSection('Hair', HAIR_PRESETS, 'hair',
+      (s, hex) => this.editor!.setHairColor(s, hex),
+      () => this.editor!.getHairColor(),
+    );
     this.addColorSection('Eyes', EYE_PRESETS, 'eyes',
       (s, hex) => this.editor!.setEyeColor(s, hex),
-      (s) => this.editor!.getEyeColor(s),
-    );
-    this.addColorSection('Hair', HAIR_PRESETS, 'hair',
-      (s, hex) => this.editor!.setHairColor(s, hex),
-      (s) => this.editor!.getHairColor(s),
+      () => this.editor!.getEyeColor(this.structure!),
     );
     this.addColorSection('Lips', LIP_PRESETS, 'lips',
       (s, hex) => this.editor!.setLipColor(s, hex),
-      (s) => this.editor!.getLipColor(s),
+      () => this.editor!.getLipColor(this.structure!),
     );
   }
+
+  // ---------------------------------------------------------------------------
+  // Skin section — dual-tone swatches, async HSL remapping
+  // ---------------------------------------------------------------------------
 
   private addSkinSection(): void {
     const section = document.createElement('div');
@@ -78,25 +83,84 @@ export class BodyTab {
     grid.className = 'swatch-grid';
 
     for (const preset of SKIN_PRESETS) {
-      const btn = this.createSwatch(preset.baseColor, preset.name, 'skin');
-      btn.addEventListener('click', () => {
+      const btn = this.createSkinSwatch(preset);
+      btn.addEventListener('click', async () => {
         if (!this.editor || !this.structure) return;
-        this.editor.setSkinTone(this.structure, preset.baseColor);
+        await this.editor.setSkinTone(this.structure, preset.baseColor);
         this.setActiveSwatch('skin', btn);
       });
       grid.appendChild(btn);
     }
     section.appendChild(grid);
 
-    const customRow = this.createCustomPicker('skin', (hex) => {
+    const customRow = this.createDebouncedPicker('skin', 150, async (hex) => {
       if (!this.editor || !this.structure) return;
-      this.editor.setSkinTone(this.structure, hex);
+      await this.editor.setSkinTone(this.structure, hex);
       this.clearActiveSwatch('skin');
     });
     section.appendChild(customRow);
 
     this.root.appendChild(section);
   }
+
+  /** Dual-tone swatch showing base (top) and shade (bottom) colors. */
+  private createSkinSwatch(preset: SkinPreset): HTMLButtonElement {
+    const btn = document.createElement('button');
+    btn.className = 'swatch swatch--skin';
+    btn.style.background =
+      `linear-gradient(180deg, ${preset.baseColor} 50%, ${preset.shadeColor} 50%)`;
+    btn.title = preset.name;
+    btn.dataset.slot = 'skin';
+    btn.dataset.color = preset.baseColor;
+    return btn;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Async color section — for hair (HSL texture remapping)
+  // ---------------------------------------------------------------------------
+
+  private addAsyncColorSection(
+    title: string,
+    presets: ColorPreset[],
+    slotKey: string,
+    setColor: (structure: VRMStructure, hex: string) => Promise<void>,
+    _getColor: GetColorFn,
+  ): void {
+    const section = document.createElement('div');
+    section.className = 'color-section';
+
+    const label = document.createElement('div');
+    label.className = 'section-label';
+    label.textContent = title;
+    section.appendChild(label);
+
+    const grid = document.createElement('div');
+    grid.className = 'swatch-grid';
+
+    for (const preset of presets) {
+      const btn = this.createSwatch(preset.color, preset.name, slotKey);
+      btn.addEventListener('click', async () => {
+        if (!this.editor || !this.structure) return;
+        await setColor(this.structure, preset.color);
+        this.setActiveSwatch(slotKey, btn);
+      });
+      grid.appendChild(btn);
+    }
+    section.appendChild(grid);
+
+    const customRow = this.createDebouncedPicker(slotKey, 150, async (hex) => {
+      if (!this.editor || !this.structure) return;
+      await setColor(this.structure, hex);
+      this.clearActiveSwatch(slotKey);
+    });
+    section.appendChild(customRow);
+
+    this.root.appendChild(section);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Sync color section — for eyes and lips (instant albedoColor)
+  // ---------------------------------------------------------------------------
 
   private addColorSection(
     title: string,
@@ -137,6 +201,10 @@ export class BodyTab {
     this.root.appendChild(section);
   }
 
+  // ---------------------------------------------------------------------------
+  // Swatch and picker helpers
+  // ---------------------------------------------------------------------------
+
   private createSwatch(color: string, title: string, slotKey: string): HTMLButtonElement {
     const btn = document.createElement('button');
     btn.className = 'swatch';
@@ -168,6 +236,38 @@ export class BodyTab {
     return row;
   }
 
+  /** Custom picker with debounce for async texture remapping. */
+  private createDebouncedPicker(
+    slotKey: string,
+    delayMs: number,
+    onChange: (hex: string) => Promise<void>,
+  ): HTMLDivElement {
+    const row = document.createElement('div');
+    row.className = 'custom-row';
+
+    const label = document.createElement('label');
+    label.textContent = 'Custom';
+    row.appendChild(label);
+
+    const input = document.createElement('input');
+    input.type = 'color';
+    input.value = '#ffffff';
+    input.dataset.slot = slotKey;
+
+    let timeout: ReturnType<typeof setTimeout> | null = null;
+    input.addEventListener('input', () => {
+      if (timeout) clearTimeout(timeout);
+      timeout = setTimeout(() => void onChange(input.value), delayMs);
+    });
+    row.appendChild(input);
+
+    return row;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Active swatch tracking
+  // ---------------------------------------------------------------------------
+
   private setActiveSwatch(slotKey: string, btn: HTMLButtonElement): void {
     const prev = this.activeSwatch.get(slotKey);
     if (prev) prev.classList.remove('active');
@@ -185,9 +285,9 @@ export class BodyTab {
   syncFromModel(): void {
     if (!this.editor || !this.structure) return;
 
-    this.syncSlot('skin', this.editor.getSkinTone(this.structure));
+    this.syncSlot('skin', this.editor.getSkinTone());
     this.syncSlot('eyes', this.editor.getEyeColor(this.structure));
-    this.syncSlot('hair', this.editor.getHairColor(this.structure));
+    this.syncSlot('hair', this.editor.getHairColor());
     this.syncSlot('lips', this.editor.getLipColor(this.structure));
   }
 
