@@ -64,8 +64,8 @@ export class AvatarLifecycle {
       // 2. Lighting (studio 3-point)
       this.lighting = new LightingSetup(scene);
 
-      // 3. Background (neutral gradient)
-      this.background = new Background(scene);
+      // 3. Background (textured backdrop)
+      this.background = new Background(scene, 'assets/bg-florals.png');
 
       // 4. Load VRM/GLB model
       await this.loadModel(config.modelPath);

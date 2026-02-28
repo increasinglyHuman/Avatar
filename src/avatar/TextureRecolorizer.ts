@@ -1,23 +1,25 @@
 import { RawTexture, Texture } from '@babylonjs/core';
-import type { BaseTexture, Scene } from '@babylonjs/core';
+import type { Scene } from '@babylonjs/core';
 
 export interface HSLTarget {
   hue: number; // 0–1
   saturation: number; // 0–1
+  lightness: number; // 0–1
 }
 
 /**
  * Canvas-based HSL texture remapping for VRM avatar materials.
  *
  * Reads source albedoTexture pixels, converts RGB → HSL,
- * replaces hue + saturation with the target while preserving
- * luminance (pores, shadows, highlights), writes back as RawTexture.
+ * replaces hue + saturation with the target, and remaps luminance
+ * so the target's lightness sets overall brightness while texture
+ * detail (pores, shadows, highlights) is preserved as relative variation.
  */
 export class TextureRecolorizer {
-  /** Original unmodified pixel data, keyed by material name. */
+  /** Original unmodified pixel data + precomputed average luminance. */
   private cache = new Map<
     string,
-    { pixels: Uint8Array; width: number; height: number }
+    { pixels: Uint8Array; width: number; height: number; avgL: number }
   >();
 
   /** Last created recolored texture per material, for disposal. */
@@ -29,9 +31,16 @@ export class TextureRecolorizer {
    */
   async cacheOriginalTexture(
     materialName: string,
-    texture: BaseTexture,
+    texture: Texture,
   ): Promise<void> {
     if (this.cache.has(materialName)) return;
+
+    // Wait for texture to be GPU-ready before reading pixels
+    if (!texture.isReady()) {
+      await new Promise<void>((resolve) => {
+        texture.onLoadObservable.addOnce(() => resolve());
+      });
+    }
 
     const size = texture.getSize();
     const raw = await texture.readPixels();
@@ -42,13 +51,37 @@ export class TextureRecolorizer {
       return;
     }
 
-    // Defensive copy so source is immutable
+    // TRUE copy — raw buffer may be reused/freed by the engine
     const view = raw as ArrayBufferView;
-    const pixels = new Uint8Array(view.buffer, view.byteOffset, view.byteLength);
+    const src = new Uint8Array(view.buffer, view.byteOffset, view.byteLength);
+    const pixels = new Uint8Array(src); // copies into new ArrayBuffer
+
+    // Compute average luminance (HSL L) for luminance remapping.
+    // Sample every 8th pixel for speed on large textures.
+    let totalL = 0;
+    let sampleCount = 0;
+    const stride = 8;
+    for (let i = 0; i < pixels.length; i += 4 * stride) {
+      const a = pixels[i + 3];
+      if (a === 0) continue; // skip fully transparent
+      const r = pixels[i] / 255;
+      const g = pixels[i + 1] / 255;
+      const b = pixels[i + 2] / 255;
+      totalL += (Math.max(r, g, b) + Math.min(r, g, b)) / 2;
+      sampleCount++;
+    }
+    const avgL = sampleCount > 0 ? totalL / sampleCount : 0.5;
+
+    console.log(
+      `[TextureRecolorizer] Cached "${materialName}": ${size.width}x${size.height}, ` +
+        `${pixels.length} bytes, avgL=${avgL.toFixed(3)}`,
+    );
+
     this.cache.set(materialName, {
       pixels,
       width: size.width,
       height: size.height,
+      avgL,
     });
   }
 
@@ -58,18 +91,27 @@ export class TextureRecolorizer {
 
   /**
    * HSL-remap cached pixels to the target and return a new RawTexture.
-   * Disposes the previous recolored texture for this material.
+   *
+   * @param intensity 0–1: blend between original (0) and fully recolored (1)
+   * @param tintOffset -0.5–+0.5: darken (negative) or lighten (positive) the output
    */
   recolor(
     materialName: string,
     target: HSLTarget,
     scene: Scene,
+    intensity: number = 1.0,
+    tintOffset: number = 0,
   ): RawTexture | null {
     const entry = this.cache.get(materialName);
-    if (!entry) return null;
+    if (!entry) {
+      console.warn(`[TextureRecolorizer] recolor: no cache for "${materialName}"`);
+      return null;
+    }
 
-    const { pixels, width, height } = entry;
+    const { pixels, width, height, avgL } = entry;
     const out = new Uint8Array(pixels.length);
+    const safeAvgL = avgL > 0.001 ? avgL : 0.5;
+    const inv = 1 - intensity;
 
     for (let i = 0; i < pixels.length; i += 4) {
       const r = pixels[i] / 255;
@@ -77,12 +119,17 @@ export class TextureRecolorizer {
       const b = pixels[i + 2] / 255;
 
       const [, , srcL] = rgbToHsl(r, g, b);
-      const [nr, ng, nb] = hslToRgb(target.hue, target.saturation, srcL);
 
-      out[i] = Math.round(nr * 255);
-      out[i + 1] = Math.round(ng * 255);
-      out[i + 2] = Math.round(nb * 255);
-      out[i + 3] = pixels[i + 3]; // alpha unchanged
+      // Remap luminance + tint offset
+      const outL = Math.min(Math.max(
+        target.lightness * (srcL / safeAvgL) + tintOffset, 0), 1);
+      const [rr, rg, rb] = hslToRgb(target.hue, target.saturation, outL);
+
+      // Blend with original based on intensity
+      out[i] = Math.round((r * inv + rr * intensity) * 255);
+      out[i + 1] = Math.round((g * inv + rg * intensity) * 255);
+      out[i + 2] = Math.round((b * inv + rb * intensity) * 255);
+      out[i + 3] = pixels[i + 3];
     }
 
     // Dispose previous recolored texture for this material
@@ -105,14 +152,14 @@ export class TextureRecolorizer {
     return tex;
   }
 
-  /** Convert hex color to HSL target (luminance ignored — comes from texture). */
+  /** Convert hex color to full HSL target (hue, saturation, AND lightness). */
   static hexToHSLTarget(hex: string): HSLTarget {
     const n = parseInt(hex.replace('#', ''), 16);
     const r = ((n >> 16) & 0xff) / 255;
     const g = ((n >> 8) & 0xff) / 255;
     const b = (n & 0xff) / 255;
-    const [h, s] = rgbToHsl(r, g, b);
-    return { hue: h, saturation: s };
+    const [h, s, l] = rgbToHsl(r, g, b);
+    return { hue: h, saturation: s, lightness: l };
   }
 
   dispose(): void {

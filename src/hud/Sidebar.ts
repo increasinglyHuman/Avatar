@@ -130,6 +130,52 @@ const SIDEBAR_STYLES = `
     padding: 0;
   }
 
+  /* Sliders */
+  .slider-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 6px;
+  }
+  .slider-row label {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.4);
+    min-width: 52px;
+  }
+  .slider-row .color-slider {
+    flex: 1;
+    height: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+  .slider-row .color-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #fff;
+    border: 2px solid rgba(0, 0, 0, 0.3);
+    cursor: pointer;
+  }
+  .slider-row .color-slider::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #fff;
+    border: 2px solid rgba(0, 0, 0, 0.3);
+    cursor: pointer;
+  }
+  .slider-row .slider-value {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.5);
+    min-width: 24px;
+    text-align: right;
+  }
+
   /* Footer */
   #avatar-sidebar .sidebar-footer {
     padding: 8px 20px;
