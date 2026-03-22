@@ -6,9 +6,12 @@ import { DressingRoomCamera } from '../camera/DressingRoomCamera.js';
 import { Sidebar } from '../hud/Sidebar.js';
 import { VRMAnalyzer } from '../avatar/VRMAnalyzer.js';
 import { MaterialEditor } from '../avatar/MaterialEditor.js';
+import { CatalogLoader } from '../avatar/CatalogLoader.js';
+import { ClothingManager } from '../avatar/ClothingManager.js';
+import { HairSwapper } from '../avatar/HairSwapper.js';
 import type { PostMessageBridge } from '../bridge/PostMessageBridge.js';
 import { SceneLoader, TransformNode, Vector3 } from '@babylonjs/core';
-import type { AbstractMesh } from '@babylonjs/core';
+import type { AbstractMesh, Skeleton } from '@babylonjs/core';
 import '@babylonjs/loaders/glTF';
 
 /**
@@ -26,8 +29,12 @@ export class AvatarLifecycle {
 
   private modelRoot: TransformNode | null = null;
   private modelMeshes: AbstractMesh[] = [];
+  private avatarSkeleton: Skeleton | null = null;
   private vrmStructure: VRMStructure | null = null;
   private materialEditor: MaterialEditor | null = null;
+  private catalogLoader: CatalogLoader | null = null;
+  private clothingManager: ClothingManager | null = null;
+  private hairSwapper: HairSwapper | null = null;
 
   private container: HTMLElement;
   private canvas: HTMLCanvasElement;
@@ -83,10 +90,20 @@ export class AvatarLifecycle {
       this.materialEditor = new MaterialEditor();
       await this.materialEditor.initTextureCache(this.vrmStructure, scene);
 
-      // 4c. Swap body skin with painted texture (test)
-      await this.materialEditor.swapBodySkinTexture(
-        this.vrmStructure, 'assets/body-skin-painted.png', scene,
-      );
+      // 4c. Load catalog + clothing/hair managers
+      try {
+        this.catalogLoader = new CatalogLoader();
+        await this.catalogLoader.load();
+
+        if (this.avatarSkeleton && this.modelRoot) {
+          this.clothingManager = new ClothingManager(scene, this.modelRoot, this.avatarSkeleton);
+          this.hairSwapper = new HairSwapper(scene, this.modelRoot, this.avatarSkeleton);
+          this.hairSwapper.setOriginalHair(this.vrmStructure);
+        }
+        console.log('[Avatar] Catalog + clothing/hair managers ready');
+      } catch (err) {
+        console.warn('[Avatar] Catalog load failed (wardrobe disabled):', err);
+      }
 
       // 5. Camera (orbit around loaded model)
       this.camera = new DressingRoomCamera(scene, this.canvas);
@@ -99,6 +116,9 @@ export class AvatarLifecycle {
       }
       if (this.vrmStructure && this.materialEditor) {
         this.sidebar.connectAvatar(this.materialEditor, this.vrmStructure);
+      }
+      if (this.catalogLoader && this.clothingManager && this.hairSwapper) {
+        this.sidebar.connectWardrobe(this.catalogLoader, this.clothingManager, this.hairSwapper);
       }
 
       // 7. Per-frame updates
@@ -161,6 +181,9 @@ export class AvatarLifecycle {
       }
     }
     this.modelMeshes = result.meshes;
+    if (result.skeletons.length > 0) {
+      this.avatarSkeleton = result.skeletons[0];
+    }
 
     this.modelRoot.position = Vector3.Zero();
 
@@ -257,6 +280,13 @@ export class AvatarLifecycle {
     }
 
     // Dispose in reverse order
+    this.clothingManager?.dispose();
+    this.hairSwapper?.dispose();
+    this.clothingManager = null;
+    this.hairSwapper = null;
+    this.catalogLoader = null;
+    this.avatarSkeleton = null;
+
     this.materialEditor?.dispose();
     this.materialEditor = null;
     this.vrmStructure = null;

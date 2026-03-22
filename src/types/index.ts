@@ -149,3 +149,82 @@ export const LIP_PRESETS: ColorPreset[] = [
   { name: 'Nude', color: '#C4A088' },
   { name: 'Bold', color: '#800030' },
 ];
+
+// ---------------------------------------------------------------------------
+// Catalog + Wardrobe types (Sprint 2)
+// ---------------------------------------------------------------------------
+
+export type ClothingSlot = 'tops' | 'bottoms' | 'onepiece' | 'shoes' | 'accessory';
+export type WardrobeCategory = ClothingSlot | 'hair';
+
+export interface CatalogClothingItem {
+  id: string;
+  slot: ClothingSlot;
+  vroidSlot: string;
+  source: string;
+  sourceFile: string;
+  materialName: string;
+  asset: string;
+  thumbnail: string;
+  vertexCount: number;
+  triangleCount: number;
+  hasSkinning: boolean;
+  skeleton: string;
+  gender: AvatarGender;
+  geometryHash: string;
+  textureResolution: [number, number] | null;
+  tintable: boolean;
+  isDuplicate: boolean;
+  duplicateOf: string | null;
+}
+
+export interface CatalogHairItem {
+  id: string;
+  gender: AvatarGender;
+  source: string;
+  sourceFile: string;
+  asset: string;
+  thumbnail: string;
+  skeleton: string;
+  primitives: Array<{
+    name: string;
+    vertexCount: number;
+    triangleCount: number;
+    geometryHash: string;
+  }>;
+  springBones: number;
+}
+
+export interface CatalogBaseItem {
+  id: string;
+  gender: AvatarGender;
+  source: string;
+  asset: string;
+  skeleton: string;
+  boneCount: number;
+}
+
+export interface Catalog {
+  version: number;
+  generated: string;
+  stats: {
+    totalVRMs: number;
+    totalClothPrimitives: number;
+    uniqueClothGeometries: number;
+    totalHairStyles: number;
+    baseBodies: number;
+    textureOnlyItems: number;
+  };
+  bases: CatalogBaseItem[];
+  hair: CatalogHairItem[];
+  clothing: CatalogClothingItem[];
+}
+
+export interface EquippedState {
+  tops: string | null;
+  bottoms: string | null;
+  onepiece: string | null;
+  shoes: string | null;
+  accessory: string | null;
+  hair: string | null;
+}

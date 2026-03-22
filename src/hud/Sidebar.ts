@@ -4,6 +4,9 @@ import { BodyTab } from './BodyTab.js';
 import { OutfitsTab } from './OutfitsTab.js';
 import { WardrobeTab } from './WardrobeTab.js';
 import type { MaterialEditor } from '../avatar/MaterialEditor.js';
+import type { ClothingManager } from '../avatar/ClothingManager.js';
+import type { HairSwapper } from '../avatar/HairSwapper.js';
+import type { CatalogLoader } from '../avatar/CatalogLoader.js';
 import type { VRMStructure } from '../types/index.js';
 
 const SIDEBAR_STYLES = `
@@ -251,6 +254,14 @@ export class Sidebar {
 
   connectAvatar(editor: MaterialEditor, structure: VRMStructure): void {
     this.bodyTab.connect(editor, structure);
+  }
+
+  connectWardrobe(
+    catalog: CatalogLoader,
+    clothingMgr: ClothingManager,
+    hairSwapper: HairSwapper,
+  ): void {
+    this.wardrobeTab.connect(catalog, clothingMgr, hairSwapper);
   }
 
   setFPS(fps: number): void {
