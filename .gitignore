@@ -34,6 +34,9 @@ Thumbs.db
 # Logs
 *.log
 
+# Extracted assets (regenerate with: node tools/extract-catalog.mjs --extract --deduplicate)
+extracted-assets/
+
 # Cache
 .cache/
 .parcel-cache/

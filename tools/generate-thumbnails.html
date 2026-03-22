@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>VRM Thumbnail Generator — BlackBox Avatar</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #111;
+      color: #ccc;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-size: 14px;
+    }
+    #app {
+      display: flex;
+      height: 100vh;
+    }
+    #controls {
+      width: 320px;
+      padding: 16px;
+      overflow-y: auto;
+      border-right: 1px solid #333;
+      flex-shrink: 0;
+    }
+    #viewport {
+      flex: 1;
+      position: relative;
+    }
+    canvas { display: block; }
+    h1 { font-size: 18px; color: #fff; margin-bottom: 12px; }
+    h2 { font-size: 14px; color: #888; margin: 16px 0 8px; text-transform: uppercase; letter-spacing: 1px; }
+    .btn {
+      display: inline-block;
+      padding: 8px 16px;
+      margin: 4px;
+      background: #2a2a2a;
+      border: 1px solid #444;
+      color: #ddd;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .btn:hover { background: #3a3a3a; border-color: #666; }
+    .btn.primary { background: #1a5a2a; border-color: #2a8a3a; }
+    .btn.primary:hover { background: #2a7a3a; }
+    #status {
+      padding: 8px 12px;
+      background: #1a1a1a;
+      border-radius: 4px;
+      margin: 8px 0;
+      font-family: monospace;
+      font-size: 12px;
+      min-height: 60px;
+      white-space: pre-wrap;
+    }
+    #progress { color: #4a9; }
+    #thumbnail-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, 128px);
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .thumb-card {
+      background: #1a1a1a;
+      border-radius: 4px;
+      padding: 4px;
+      text-align: center;
+    }
+    .thumb-card img {
+      width: 120px;
+      height: 120px;
+      border-radius: 2px;
+      image-rendering: auto;
+    }
+    .thumb-card .label {
+      font-size: 10px;
+      color: #888;
+      margin-top: 2px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    input[type="file"] { margin: 8px 0; }
+    #mannequin-toggle { margin: 8px 0; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="controls">
+      <h1>Thumbnail Generator</h1>
+      <p style="color:#666; margin-bottom:12px;">Renders GLB assets against black background for inventory thumbnails.</p>
+
+      <h2>Load Catalog</h2>
+      <input type="file" id="catalog-input" accept=".json" />
+      <button class="btn" id="load-dir-btn">Load from extracted-assets/</button>
+
+      <h2>Or Load Single GLB</h2>
+      <input type="file" id="single-glb" accept=".glb,.vrm" />
+
+      <h2>Options</h2>
+      <label id="mannequin-toggle">
+        <input type="checkbox" id="show-mannequin" checked /> Show mannequin body
+      </label>
+      <br/>
+      <label>
+        <input type="checkbox" id="auto-download" /> Auto-download PNGs
+      </label>
+      <br/>
+      <label>
+        Size: <select id="thumb-size">
+          <option value="128">128x128</option>
+          <option value="256" selected>256x256</option>
+          <option value="512">512x512</option>
+        </select>
+      </label>
+
+      <h2>Actions</h2>
+      <button class="btn primary" id="render-all-btn" disabled>Render All Thumbnails</button>
+      <button class="btn" id="render-current-btn">Capture Current View</button>
+
+      <div id="status">Ready. Load a catalog or GLB to begin.</div>
+      <div id="progress"></div>
+
+      <h2>Thumbnails</h2>
+      <div id="thumbnail-grid"></div>
+    </div>
+    <div id="viewport">
+      <canvas id="render-canvas"></canvas>
+    </div>
+  </div>
+
+  <!-- Babylon.js from CDN (matches project version) -->
+  <script src="https://cdn.babylonjs.com/babylon.js"></script>
+  <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+
+  <script>
+    // ─── Babylon.js Setup ─────────────────────────────────────────────────────
+
+    const canvas = document.getElementById('render-canvas');
+    const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true });
+    const scene = new BABYLON.Scene(engine);
+
+    // Black background
+    scene.clearColor = new BABYLON.Color4(0, 0, 0, 1);
+
+    // Camera
+    const camera = new BABYLON.ArcRotateCamera(
+      'thumbCam', Math.PI / 2, Math.PI / 2.5, 2.5, BABYLON.Vector3.Zero(), scene
+    );
+    camera.attachControl(canvas, true);
+    camera.wheelPrecision = 40;
+    camera.minZ = 0.01;
+
+    // Studio lighting for thumbnails
+    const hemi = new BABYLON.HemisphericLight('hemi', new BABYLON.Vector3(0, 1, 0), scene);
+    hemi.intensity = 0.3;
+    hemi.diffuse = new BABYLON.Color3(0.95, 0.92, 0.88);
+    hemi.groundColor = new BABYLON.Color3(0.15, 0.18, 0.22);
+
+    const key = new BABYLON.DirectionalLight('key', new BABYLON.Vector3(-0.5, -0.8, 0.5), scene);
+    key.intensity = 1.0;
+    key.diffuse = new BABYLON.Color3(1, 0.97, 0.92);
+
+    const fill = new BABYLON.DirectionalLight('fill', new BABYLON.Vector3(0.5, -0.5, 0.5), scene);
+    fill.intensity = 0.4;
+    fill.diffuse = new BABYLON.Color3(0.85, 0.88, 1.0);
+
+    const rim = new BABYLON.PointLight('rim', new BABYLON.Vector3(0, 1.2, -1.5), scene);
+    rim.intensity = 0.6;
+    rim.diffuse = new BABYLON.Color3(0.9, 0.95, 1.0);
+
+    // Render loop
+    engine.runRenderLoop(() => scene.render());
+    window.addEventListener('resize', () => engine.resize());
+
+    // ─── State ────────────────────────────────────────────────────────────────
+
+    let currentMeshes = [];
+    let mannequinMeshes = [];
+    let catalog = null;
+    let assetBasePath = '';
+
+    const statusEl = document.getElementById('status');
+    const progressEl = document.getElementById('progress');
+    const gridEl = document.getElementById('thumbnail-grid');
+
+    function log(msg) {
+      statusEl.textContent = msg;
+      console.log(msg);
+    }
+
+    // ─── Model Loading ────────────────────────────────────────────────────────
+
+    function clearCurrentModel() {
+      for (const m of currentMeshes) {
+        m.dispose();
+      }
+      currentMeshes = [];
+    }
+
+    function clearMannequin() {
+      for (const m of mannequinMeshes) {
+        m.dispose();
+      }
+      mannequinMeshes = [];
+    }
+
+    async function loadGLB(url, isMannequin = false) {
+      const result = await BABYLON.SceneLoader.ImportMeshAsync('', '', url, scene);
+      const meshes = result.meshes.filter(m => m.getTotalVertices() > 0);
+
+      if (isMannequin) {
+        mannequinMeshes = result.meshes;
+        // Make mannequin semi-transparent
+        for (const m of meshes) {
+          if (m.material) {
+            m.material.alpha = 0.15;
+            m.material.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
+          }
+        }
+      } else {
+        currentMeshes = result.meshes;
+      }
+
+      return result;
+    }
+
+    function autoFrameCamera() {
+      const allMeshes = [...currentMeshes, ...mannequinMeshes].filter(m => m.getTotalVertices() > 0);
+      if (allMeshes.length === 0) return;
+
+      // Compute bounding box
+      let min = new BABYLON.Vector3(Infinity, Infinity, Infinity);
+      let max = new BABYLON.Vector3(-Infinity, -Infinity, -Infinity);
+
+      for (const m of allMeshes) {
+        m.refreshBoundingInfo();
+        const bb = m.getBoundingInfo().boundingBox;
+        min = BABYLON.Vector3.Minimize(min, bb.minimumWorld);
+        max = BABYLON.Vector3.Maximize(max, bb.maximumWorld);
+      }
+
+      const center = BABYLON.Vector3.Center(min, max);
+      const extent = max.subtract(min);
+      const maxDim = Math.max(extent.x, extent.y, extent.z);
+
+      camera.target = center;
+      camera.radius = maxDim * 1.8;
+      camera.alpha = Math.PI / 2;
+      camera.beta = Math.PI / 2.2;
+    }
+
+    // ─── Thumbnail Capture ────────────────────────────────────────────────────
+
+    function captureScreenshot(size) {
+      return new Promise((resolve) => {
+        BABYLON.Tools.CreateScreenshotUsingRenderTarget(
+          engine, camera, { width: size, height: size },
+          (data) => resolve(data)
+        );
+      });
+    }
+
+    function addThumbnailCard(dataUrl, label) {
+      const card = document.createElement('div');
+      card.className = 'thumb-card';
+      card.innerHTML = `<img src="${dataUrl}" alt="${label}"><div class="label">${label}</div>`;
+      gridEl.appendChild(card);
+
+      // Click to download
+      card.addEventListener('click', () => {
+        const a = document.createElement('a');
+        a.href = dataUrl;
+        a.download = `${label}.png`;
+        a.click();
+      });
+    }
+
+    function downloadDataUrl(dataUrl, filename) {
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = filename;
+      a.click();
+    }
+
+    // ─── Batch Processing ─────────────────────────────────────────────────────
+
+    async function renderAllThumbnails() {
+      if (!catalog) {
+        log('No catalog loaded');
+        return;
+      }
+
+      const size = parseInt(document.getElementById('thumb-size').value);
+      const autoDownload = document.getElementById('auto-download').checked;
+      const showMannequin = document.getElementById('show-mannequin').checked;
+
+      const items = [
+        ...catalog.clothing.filter(c => !c.isDuplicate),
+        ...catalog.hair,
+      ];
+
+      log(`Rendering ${items.length} thumbnails at ${size}x${size}...`);
+      gridEl.innerHTML = '';
+
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        const assetUrl = assetBasePath + item.asset;
+
+        progressEl.textContent = `[${i + 1}/${items.length}] ${item.id}`;
+
+        try {
+          clearCurrentModel();
+          await loadGLB(assetUrl, false);
+
+          // Toggle mannequin visibility
+          for (const m of mannequinMeshes) {
+            m.setEnabled(showMannequin);
+          }
+
+          autoFrameCamera();
+
+          // Wait a frame for rendering
+          await new Promise(r => setTimeout(r, 100));
+
+          const screenshot = await captureScreenshot(size);
+          addThumbnailCard(screenshot, item.id);
+
+          if (autoDownload) {
+            downloadDataUrl(screenshot, `${item.id}.png`);
+          }
+        } catch (err) {
+          console.error(`Failed: ${item.id}`, err);
+          progressEl.textContent += ` ERROR: ${err.message}`;
+        }
+      }
+
+      clearCurrentModel();
+      log(`Done! ${items.length} thumbnails rendered.`);
+      progressEl.textContent = '';
+    }
+
+    // ─── Event Handlers ───────────────────────────────────────────────────────
+
+    // Load catalog JSON
+    document.getElementById('catalog-input').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const text = await file.text();
+      catalog = JSON.parse(text);
+      assetBasePath = ''; // User must set this or use relative paths
+      log(`Catalog loaded: ${catalog.clothing.length} clothing + ${catalog.hair.length} hair`);
+      document.getElementById('render-all-btn').disabled = false;
+    });
+
+    // Load from extracted-assets/ (relative)
+    document.getElementById('load-dir-btn').addEventListener('click', async () => {
+      try {
+        const resp = await fetch('../extracted-assets/catalog/items.json');
+        catalog = await resp.json();
+        assetBasePath = '../extracted-assets/';
+        log(`Catalog loaded: ${catalog.clothing.length} clothing + ${catalog.hair.length} hair`);
+        document.getElementById('render-all-btn').disabled = false;
+      } catch (err) {
+        log(`Failed to load catalog: ${err.message}\nRun extract-catalog.mjs --extract first.`);
+      }
+    });
+
+    // Load single GLB
+    document.getElementById('single-glb').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      clearCurrentModel();
+      const url = URL.createObjectURL(file);
+      try {
+        await loadGLB(url, false);
+        autoFrameCamera();
+        log(`Loaded: ${file.name}`);
+      } catch (err) {
+        log(`Failed: ${err.message}`);
+      }
+    });
+
+    // Capture current view
+    document.getElementById('render-current-btn').addEventListener('click', async () => {
+      const size = parseInt(document.getElementById('thumb-size').value);
+      const screenshot = await captureScreenshot(size);
+      addThumbnailCard(screenshot, 'capture-' + Date.now());
+      log('Screenshot captured (click thumbnail to download)');
+    });
+
+    // Render all
+    document.getElementById('render-all-btn').addEventListener('click', renderAllThumbnails);
+
+    // ─── Init ─────────────────────────────────────────────────────────────────
+    engine.resize();
+  </script>
+</body>
+</html>
