@@ -64,8 +64,8 @@ export class AvatarLifecycle {
       // 2. Lighting (studio 3-point)
       this.lighting = new LightingSetup(scene);
 
-      // 3. Background (textured backdrop)
-      this.background = new Background(scene, 'assets/bg-florals.png');
+      // 3. Background (radial glow over black)
+      this.background = new Background(scene);
 
       // 4. Load VRM/GLB model
       await this.loadModel(config.modelPath);
@@ -82,6 +82,11 @@ export class AvatarLifecycle {
       // 4b. Material editor + texture cache for HSL remapping
       this.materialEditor = new MaterialEditor();
       await this.materialEditor.initTextureCache(this.vrmStructure, scene);
+
+      // 4c. Swap body skin with painted texture (test)
+      await this.materialEditor.swapBodySkinTexture(
+        this.vrmStructure, 'assets/body-skin-painted.png', scene,
+      );
 
       // 5. Camera (orbit around loaded model)
       this.camera = new DressingRoomCamera(scene, this.canvas);

@@ -50,6 +50,30 @@ export class MaterialEditor {
     console.log(`[MaterialEditor] Texture cache: ${cached}/${allMats.length} materials ready for HSL remapping`);
   }
 
+  /**
+   * Replace the base texture for body skin materials with a custom PNG,
+   * then re-cache it so HSL remapping works on the new texture.
+   */
+  async swapBodySkinTexture(
+    structure: VRMStructure,
+    texturePath: string,
+    scene: Scene,
+  ): Promise<void> {
+    const tex = new Texture(texturePath, scene, false, false); // noMipmap=false, invertY=false (match glTF UV convention)
+    await new Promise<void>((resolve) => {
+      if (tex.isReady()) { resolve(); return; }
+      tex.onLoadObservable.addOnce(() => resolve());
+    });
+
+    for (const mat of structure.materialRefs.bodySkin) {
+      mat.albedoTexture = tex;
+      // Re-cache with the new texture so HSL remapping uses painted pixels
+      this.recolorizer.clearCached(mat.name);
+      await this.recolorizer.cacheOriginalTexture(mat.name, tex);
+    }
+    console.log(`[MaterialEditor] Body skin texture swapped to: ${texturePath}`);
+  }
+
   // ---------------------------------------------------------------------------
   // Skin
   // ---------------------------------------------------------------------------

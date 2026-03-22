@@ -189,35 +189,161 @@ User clicks "Wear" on shirt in inventory
 
 ## 4. Avatar Team Responses
 
-*(Please fill in below — edit this section directly)*
+*Filled 2026-03-22 by Avatar Team*
 
 ### A1: Runtime Clothing Swap
 
-*(How does skeleton rebinding work? Reference code location? Body submesh hiding?)*
+**Your assumption is correct.** The flow is: load GLB → rebind skeleton → parent to avatar root.
+
+**Reference code:** `avatar-preserved/library/vrmClothingManager.js` — Three.js implementation, lines 86–113 (`applyClothingPiece`) and 413–451 (`rebindToSkeleton`). The Babylon.js port follows the same algorithm:
+
+```typescript
+// Skeleton rebinding — bone name matching
+function rebindToSkeleton(clothMesh: Mesh, targetSkeleton: Skeleton) {
+  const boneMap = new Map<string, Bone>();
+  targetSkeleton.bones.forEach(bone => boneMap.set(bone.name, bone));
+
+  const newBones = clothMesh.skeleton.bones.map(srcBone =>
+    boneMap.get(srcBone.name) ?? srcBone  // fallback keeps spring bones
+  );
+  // Rebuild skeleton with remapped bones, recalculate inverses
+}
+```
+
+**Dispose vs show/hide:** Dispose the old mesh when swapping within a slot (tops replaces tops). Each slot has at most one active garment. Reason: GLBs carry their own materials/textures — hiding wastes GPU memory. Accessories are the exception (stackable, max 2 per sub-slot).
+
+**Body cutout management:** Not needed for VRoid clothing. VRoid garments are designed to fully cover the body regions they overlay — there's no clipping because the clothing geometry sits slightly outside the body mesh. The body skin renders underneath but is occluded naturally. No items.json field needed for this.
+
+**Utility function:** Avatar will provide a `ClothingManager.ts` module (Sprint 2) with:
+- `equipItem(avatarRoot, glbUrl, slot)` → load, rebind, parent, return mesh ref
+- `unequipSlot(avatarRoot, slot)` → dispose mesh, clean up
+- `getEquipped(avatarRoot)` → list current items per slot
+
+World can call these directly or we can expose them via PostMessageBridge commands.
 
 ### A2: Asset Deployment
 
-*(Where should extracted assets live on production? Current deployment state?)*
+**Option B — `/var/www/avatar/extracted-assets/`** — keeping the directory structure from the extraction tool.
+
+**Current state:** Local only. Not yet deployed to production.
+
+**Deployment plan:**
+```bash
+# From local machine
+rsync -avz --delete \
+  -e "ssh -i ~/.ssh/poqpoq-new.pem" \
+  ./extracted-assets/ ubuntu@poqpoq.com:/var/www/avatar/extracted-assets/
+```
+
+Apache already has `Alias /avatar /var/www/avatar` configured, so assets will be available at:
+- **Base URL:** `https://poqpoq.com/avatar/extracted-assets/`
+- **Example:** `https://poqpoq.com/avatar/extracted-assets/clothing/tops/top01-N00_010_01_Onepiece_00_CLOTH_01__Instance_.glb`
+- **Catalog:** `https://poqpoq.com/avatar/extracted-assets/catalog/items.json`
+- **Thumbnails:** `https://poqpoq.com/avatar/extracted-assets/thumbnails/` (once generated)
+
+S3/CDN migration can happen later when we need global edge caching. For now, 236 MB on the server is fine.
 
 ### A3: items.json Stability
 
-*(Schema changes planned? Versioning strategy?)*
+**Schema is stable enough to build against.** Version 1 fields are final. Planned additions (non-breaking):
+
+- `displayName` — human-readable item name (e.g., "Cropped Denim Jacket" instead of the material name)
+- `tags` — searchable tags (e.g., `["casual", "denim", "cropped"]`)
+- `defaultTint` — hex color for the item's original color (needed for duplicates — see A6)
+- `coverageRegion` — body region hint for future LOD optimization (not for cutouts)
+
+**None of these break existing fields.** The `version` field will stay at 1 until we make a breaking change.
+
+**Yes, treat items.json as canonical source.** The recommended flow:
+1. Avatar runs extraction → generates items.json
+2. World reads items.json → generates NEXUS migration / Library seed
+3. If Avatar re-extracts (new assets added), World re-runs its migration
+
+**Versioning:** `generated` timestamp + `version` integer. Bump version only on breaking schema changes.
 
 ### A4: Texture Compositing
 
-*(How do texture-only items work at runtime?)*
+**Yes, Canvas 2D → GPU upload.** The `SkinCompositor` (planned for Sprint 3) works like this:
+
+```typescript
+class SkinCompositor {
+  private canvas: OffscreenCanvas;  // 2048×2048
+  private ctx: OffscreenCanvasRenderingContext2D;
+
+  compose(layers: TextureLayer[]): DynamicTexture {
+    // Layer 0: base body skin texture (always)
+    ctx.drawImage(baseSkinImage, 0, 0);
+
+    // Layers 1+: sorted by compositingLayer ascending
+    for (const layer of layers.sort((a, b) => a.compositingLayer - b.compositingLayer)) {
+      ctx.globalCompositeOperation = layer.blendMode;  // 'source-over' for alpha
+      ctx.drawImage(layerImage, 0, 0);
+    }
+
+    // Upload composited result to GPU
+    const dynamicTex = new DynamicTexture("composed-skin", 2048, scene);
+    dynamicTex.getContext().drawImage(canvas, 0, 0);
+    dynamicTex.update();
+    return dynamicTex;
+  }
+}
+```
+
+**Yes, multiple layers stack.** Underwear (layer 1) + socks (layer 1) both composite onto the body. They don't overlap in UV space, so the order between same-layer items doesn't matter.
+
+**Compositing order:** Higher `compositingLayer` = on top. The full layer stack from the Dressing Room spec:
+- Layer 0: Base skin
+- Layer 1: Clothing paint (socks, underwear, undershirts)
+- Layer 2: Nail polish
+- Layer 3: Makeup (lipstick, eyeshadow)
+- Layer 4: Tattoos (persistent, up to 8)
+- Layer 5: Temporary effects (mud, paint — session-only)
+
+**Reference code:** Not yet implemented. Sprint 3 deliverable. The spec is in `avatar-preserved/docs/DRESSING_ROOM_SPEC.md` Section "Skin Layers". Cost: ~2–5ms per recomposite (only on layer change, not per-frame).
 
 ### A5: Base Body Selection
 
-*(Character creation flow? Can base body be swapped? Gender restrictions?)*
+**Character creation picks a base body.** The user chooses feminine or masculine at the start. This can be changed later in the Dressing Room (it's a full re-load, not a hot swap, since clothing fit is gender-specific).
+
+**The 6 bases break down as:**
+- `nude-feminine` — canonical feminine base (use this)
+- `nude-masculine` — canonical masculine base (use this)
+- `DefaultFemale` — same mesh as nude-feminine with default hair/face (prebuilt)
+- `defaultMale` — same mesh as nude-masculine with default hair/face (prebuilt)
+- `baseMale` / `baseMale2` — older masculine exports (59 bones, no spring bones). **Deprecated — use nude-masculine instead.**
+
+**For World's purposes: 2 base bodies** — `nude-feminine` and `nude-masculine`. The other 4 are variants or legacy.
+
+**Gender affects clothing compatibility:** All 350 extracted clothing items are feminine. Masculine clothing is not yet in the catalog (VRoid masculine exports weren't included in the initial collection). Cross-gender equipping would technically work (same skeleton) but garments are shaped for feminine proportions — they'd look wrong on masculine bodies. We should enforce gender filtering in the inventory UI.
 
 ### A6: Tinting
 
-*(Recoloring mechanism? Color data in catalog? User color picker?)*
+**Mechanism: HSL texture remapping** — the same system already working in `MaterialEditor.ts` + `TextureRecolorizer.ts`.
+
+The flow:
+1. Read the material's base color texture pixels
+2. Convert each pixel RGB → HSL
+3. Replace H and S with the target color's H and S
+4. Remap L using a tint offset (darken/lighten)
+5. Write result as a new RawTexture, assign to material
+
+This preserves texture detail (folds, stitching, shading) while changing the color. It's more sophisticated than a flat `diffuseColor` tint.
+
+**items.json enhancement needed:** We'll add `defaultTint: "#hex"` to each clothing item recording its original color. For duplicates, the `duplicateOf` reference + both items' `defaultTint` values tell you the color delta. But in practice, the user just picks a color and we remap — we don't need to know what the "original" was.
+
+**User gets a color picker.** Both preset swatches (per item category) and a free-form HSL picker. The intensity slider (0–100%) controls how much recoloring is applied — at 0% you see the original texture, at 100% it's fully remapped.
 
 ### A7: Hair
 
-*(Attachment method? Spring bone handling? Cross-format compatibility?)*
+**Same skeleton rebinding as clothing.** Hair meshes are skinned to J_Bip bones (head, neck) just like clothing. The `extractHair` function in `vrmClothingManager.js` (lines 210–240) handles both the top-level Hair001 mesh and the HairBack primitive in the Body mesh — both must be swapped together.
+
+**Spring bones (J_Sec):** These are physics simulation bones for hair sway. In the extracted GLBs, the spring bone data is in the skeleton but the VRMC_springBone extension was stripped (since we strip all VRM extensions during extraction). **Two options:**
+1. Re-add spring bone config as a sidecar JSON per hair style (preferred)
+2. Use Babylon.js physics constraints to approximate spring behavior
+
+For MVP, hair will be static (no physics). Spring bone support is a polish item.
+
+**Cross-format (VRM hair on Ruth/Roth):** Not directly compatible. VRM hair uses J_Bip_C_Head as the attachment bone; Ruth/Roth uses mHead. The BoneMapper can translate between them, but the hair mesh vertex weights would need remapping — this is a non-trivial operation. **Recommendation:** Separate hair catalogs per avatar pipeline. Hair is cheap to model, and the visual style should match the avatar body anyway.
 
 ---
 
@@ -226,10 +352,11 @@ User clicks "Wear" on shirt in inventory
 *(Fill in as we align — these become the implementation spec)*
 
 ### Asset Path Convention
-- **Base URL:** TBD
+- **Base URL:** `https://poqpoq.com/avatar/extracted-assets/`
 - **Clothing GLB:** `{baseUrl}/{items.json asset path}`
 - **Thumbnails:** `{baseUrl}/{items.json thumbnail path}`
 - **Texture layers:** `{baseUrl}/{items.json asset path}`
+- **Catalog:** `{baseUrl}/catalog/items.json`
 
 ### NEXUS Events
 | Event | Direction | Payload |
@@ -260,4 +387,4 @@ User clicks "Wear" on shirt in inventory
 
 ---
 
-*Last updated: 2026-03-22 by World Team (Claude)*
+*Last updated: 2026-03-22 — Section 4 filled by Avatar Team*

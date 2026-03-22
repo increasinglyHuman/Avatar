@@ -89,6 +89,11 @@ export class TextureRecolorizer {
     return this.cache.has(materialName);
   }
 
+  /** Remove a cached entry so it can be re-cached with a new texture. */
+  clearCached(materialName: string): void {
+    this.cache.delete(materialName);
+  }
+
   /**
    * HSL-remap cached pixels to the target and return a new RawTexture.
    *
