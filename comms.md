@@ -374,17 +374,92 @@ For MVP, hair will be static (no physics). Spring bone support is a polish item.
 
 ---
 
-## 6. Timeline
+## 6. Status Update — 2026-03-22 (Avatar Team)
 
-| Milestone | Owner | Target |
+### Completed Today
+
+1. **Q1-Q7 answered** — all responses in Section 4 above
+2. **Assets deployed to production** — 222 extracted GLBs live at `https://poqpoq.com/avatar/extracted-assets/`
+3. **Sprint 2 shipped** — runtime clothing equip/unequip + hair swap working on prod
+4. **Catalog live** — `https://poqpoq.com/avatar/extracted-assets/catalog/items.json`
+
+### Green Light for NEXUS Library Seed
+
+**World team: you are clear to push inventory references to NEXUS.**
+
+The catalog at `items.json` is stable (v1 schema). Here's the recommended migration approach:
+
+**For `inventory_items` table — seed from items.json:**
+
+```sql
+-- Clothing items (166 unique)
+INSERT INTO inventory_items (asset_id, asset_type, subtype, name, metadata)
+SELECT
+  id,                           -- e.g. "tops-top01-0"
+  'clothing',                   -- asset_type
+  slot,                         -- subtype: "tops", "bottoms", "shoes", etc.
+  id,                           -- name (replace with displayName when we add it)
+  jsonb_build_object(
+    'asset', asset,             -- GLB path relative to base URL
+    'thumbnail', thumbnail,
+    'vertexCount', "vertexCount",
+    'triangleCount', "triangleCount",
+    'skeleton', skeleton,
+    'gender', gender,
+    'tintable', tintable,
+    'geometryHash', "geometryHash",
+    'source', 'vroid-catalog-v1'
+  )
+FROM json_populate_recordset(null::record, <items.json clothing array>);
+
+-- Hair items (16)
+INSERT INTO inventory_items (asset_id, asset_type, subtype, name, metadata)
+SELECT id, 'hair', 'hair', id,
+  jsonb_build_object('asset', asset, 'thumbnail', thumbnail, 'springBones', "springBones")
+FROM json_populate_recordset(null::record, <items.json hair array>);
+
+-- Base bodies (6 + 11 new body types incoming)
+INSERT INTO inventory_items (asset_id, asset_type, subtype, name, metadata)
+SELECT id, 'base_body', gender, id,
+  jsonb_build_object('asset', asset, 'skeleton', skeleton, 'boneCount', "boneCount")
+FROM json_populate_recordset(null::record, <items.json bases array>);
+```
+
+**Key fields to use:**
+| items.json field | NEXUS column | Notes |
+|------------------|-------------|-------|
+| `id` | `asset_id` | Stable, unique identifier |
+| `slot` | `subtype` | tops, bottoms, shoes, onepiece, accessory |
+| `asset` | `metadata.asset` | GLB path — prepend base URL at runtime |
+| `gender` | `metadata.gender` | Filter in UI — all current clothing is feminine |
+| `isDuplicate` | skip or flag | Don't create inventory entries for duplicates |
+| `tintable` | `metadata.tintable` | Show color picker in inventory UI |
+
+**Base URL for asset resolution:**
+```
+https://poqpoq.com/avatar/extracted-assets/{items.json asset path}
+```
+
+**What's coming but NOT blocking:**
+- `displayName` field (human-readable names) — use `id` for now
+- `tags` field (searchable) — not yet populated
+- 11 additional body type bases (just pulled from VRoid, extraction pending)
+- Thumbnails (placeholder boxes in UI for now)
+
+### Updated Timeline
+
+| Milestone | Owner | Status |
 |-----------|-------|--------|
-| Answer Q1-Q7 | Avatar Team | — |
-| Deploy extracted assets to production | Avatar Team | — |
-| NEXUS appearance record schema | World Team | After Q1-Q7 answered |
-| Library seed migration (items.json → inventory) | World Team | After schema agreed |
-| Runtime clothing swap implementation | World Team + Avatar Team | After deployment + answers |
-| Multi-user appearance sync | World Team | After clothing swap works |
+| Answer Q1-Q7 | Avatar Team | DONE |
+| Deploy extracted assets | Avatar Team | DONE |
+| Sprint 2 (clothing swap + wardrobe UI) | Avatar Team | DONE |
+| **Library seed migration** | **World Team** | **READY — go ahead** |
+| NEXUS appearance record schema | World Team | Ready to proceed |
+| 11 new body types → catalog | Avatar Team | In progress |
+| Thumbnails (black bg renders) | Avatar Team | Pending |
+| Sprint 3 (skin compositor + tattoos) | Avatar Team | Next |
+| Multi-user appearance sync | World Team | After appearance schema |
 
 ---
 
-*Last updated: 2026-03-22 — Section 4 filled by Avatar Team*
+*Last updated: 2026-03-22 — Sprint 2 shipped, NEXUS seed greenlit*
