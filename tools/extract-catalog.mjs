@@ -44,6 +44,7 @@ const SOURCE_DIRS = {
   'clothing/inner_bottoms': { slotHint: 'underpants',    type: 'texture' },
   'hair':                   { slotHint: 'hair',          type: 'hair' },
   'bases':                  { slotHint: 'base',          type: 'base' },
+  'body-types':             { slotHint: 'base',          type: 'base' },
 };
 
 // ─── Material Name Classification ────────────────────────────────────────────
