@@ -446,6 +446,26 @@ https://poqpoq.com/avatar/extracted-assets/{items.json asset path}
 - 11 additional body type bases (just pulled from VRoid, extraction pending)
 - Thumbnails (placeholder boxes in UI for now)
 
+## 7. Status Update — 2026-03-22 22:00 (Both Teams)
+
+### World Team Completed
+
+- NEXUS library seed LIVE — 290 items in `inventory_items` (166 clothing + 16 hair + 4 bodies + 34 texture layers + 70 existing)
+- `users.appearance` JSONB column added to all 39 users
+- Inventory panel deployed with 3 tabs, folder tree, type filter
+- DB backup: `bbworlds_nexus_20260322_203609.sql.gz` (59 tables)
+
+### Avatar Team — Body Types Deployed
+
+- **11 new body type VRMs** extracted and deployed to production
+- Catalog now at **17 bases** (was 6):
+  - Feminine (7): nude-feminine, DefaultFemale, f-avg-elvin, f-curves, f-med-curv-mod, f-med-curv-tall, f-med-curv-vampire
+  - Masculine (10): nude-masculine, defaultMale, baseMale, baseMale2, lg-male-avg, lg-male-short, lg-male-tall, lg-male-tall-thin, lg-male-tall-thin-elvin, lg-male-tall-thin-vampire
+- All use J_Bip skeleton — existing clothing catalog fits all body types
+- Updated `items.json` live at `https://poqpoq.com/avatar/extracted-assets/catalog/items.json`
+
+**Action for World team:** Re-run library seed migration to pick up 11 new base body entries from updated `items.json`. Same schema, just additional rows with `asset_type = 'base_body'`.
+
 ### Updated Timeline
 
 | Milestone | Owner | Status |
@@ -453,13 +473,15 @@ https://poqpoq.com/avatar/extracted-assets/{items.json asset path}
 | Answer Q1-Q7 | Avatar Team | DONE |
 | Deploy extracted assets | Avatar Team | DONE |
 | Sprint 2 (clothing swap + wardrobe UI) | Avatar Team | DONE |
-| **Library seed migration** | **World Team** | **READY — go ahead** |
-| NEXUS appearance record schema | World Team | Ready to proceed |
-| 11 new body types → catalog | Avatar Team | In progress |
+| Library seed migration | World Team | DONE (290 items) |
+| `users.appearance` JSONB | World Team | DONE (39 users) |
+| Inventory panel (3 tabs) | World Team | DONE |
+| 11 new body types → catalog | Avatar Team | DONE (17 total) |
+| **Re-seed 11 new bodies** | **World Team** | **Ready — pull updated items.json** |
 | Thumbnails (black bg renders) | Avatar Team | Pending |
 | Sprint 3 (skin compositor + tattoos) | Avatar Team | Next |
 | Multi-user appearance sync | World Team | After appearance schema |
 
 ---
 
-*Last updated: 2026-03-22 — Sprint 2 shipped, NEXUS seed greenlit*
+*Last updated: 2026-03-22 22:00 — NEXUS seeded, 17 body types deployed*
