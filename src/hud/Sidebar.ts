@@ -6,7 +6,7 @@ import { WardrobeTab } from './WardrobeTab.js';
 
 const SIDEBAR_STYLES = `
   #avatar-sidebar {
-    width: 320px;
+    width: 400px;
     height: 100%;
     background: rgba(18, 18, 22, 0.95);
     border-left: 1px solid rgba(255, 255, 255, 0.08);

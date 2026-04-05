@@ -91,12 +91,16 @@ export class OpenSimLoader {
       meshParts.set(mesh.name, { name: mesh.name, mesh, category });
     }
 
+    // 7. Set default visibility (hide variant meshes)
+    this.applyDefaultVisibility(meshParts);
+
     console.log(`[OpenSim] Mesh parts: ${meshParts.size} classified`);
     for (const [, part] of meshParts) {
-      console.log(`  "${part.name}" → ${part.category} (${part.mesh.getTotalVertices()} verts)`);
+      const vis = part.mesh.isVisible ? '' : ' [hidden]';
+      console.log(`  "${part.name}" → ${part.category} (${part.mesh.getTotalVertices()} verts)${vis}`);
     }
 
-    // 7. Build structure
+    // 8. Build structure
     const structure: OpenSimStructure = {
       root,
       skeleton,
@@ -147,6 +151,41 @@ export class OpenSimLoader {
     if (lower.includes('body') || lower.includes('torso') || lower.includes('upper') || lower.includes('lower')) return 'body';
 
     return 'other';
+  }
+
+  /**
+   * Hide variant meshes, showing only the default set.
+   * Ruth2 ships with multiple foot heights, fingernail styles, and body variants.
+   * Only one of each should be visible at a time.
+   */
+  private applyDefaultVisibility(meshParts: Map<string, OpenSimMeshPart>): void {
+    // Meshes to show by default (prefixes). Everything else in the same category gets hidden.
+    const defaultMeshes = new Set([
+      'Ruth2v4Body',         // main body (not BusinessBody)
+      'Ruth2v4Head',
+      'Ruth2v4Hands',
+      'Ruth2v4FeetFlat',     // flat feet (not High/Medium)
+      'Ruth2v4FeetFlatToenails',
+      'Ruth2v4FingernailsShort', // short nails (not Long/Med/Oval/Pointed)
+      'Ruth2v4EyeBall',
+      'Ruth2v4Eyeball',      // case varies between L/R in the GLB
+      'Ruth2v4Eyelashes',
+      // Roth2 equivalents (same pattern when we add male)
+      'Roth2',
+    ]);
+
+    let hidden = 0;
+    for (const [, part] of meshParts) {
+      const baseName = part.name.replace(/_primitive\d+$/, '');
+      const isDefault = [...defaultMeshes].some((prefix) => baseName.startsWith(prefix));
+
+      if (!isDefault) {
+        part.mesh.isVisible = false;
+        hidden++;
+      }
+    }
+
+    console.log(`[OpenSim] Visibility: ${meshParts.size - hidden} visible, ${hidden} hidden (variants)`);
   }
 
   /**
