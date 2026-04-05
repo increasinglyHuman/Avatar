@@ -380,7 +380,7 @@ export class OutfitsTab {
       try {
         const camera = this.engine.scenes[0].activeCamera!;
         const dataUrl = await Tools.CreateScreenshotUsingRenderTargetAsync(
-          this.engine, camera, { width: 256, height: 340 },
+          this.engine, camera, { width: 512, height: 680 },
         );
         manifest.metadata.thumbnail = dataUrl;
       } catch (err) {
