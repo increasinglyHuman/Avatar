@@ -373,31 +373,16 @@ export class OutfitsTab {
     if (!this.serializer || !this.store) return;
     const manifest = this.serializer.capture(name);
 
-    // Capture screenshot as portrait thumbnail.
-    // Temporarily override the camera viewport to portrait aspect ratio
-    // so the capture frames the avatar tightly (not a landscape crop).
+    // Capture portrait thumbnail using offscreen render target.
+    // CreateScreenshotUsingRenderTargetAsync renders at exact dimensions
+    // with correct aspect ratio — no black bars, no viewport hacking.
     if (this.engine) {
       try {
         const camera = this.engine.scenes[0].activeCamera!;
-        const origViewport = camera.viewport.clone();
-
-        // Set a narrow centered viewport to simulate portrait framing
-        // This crops the horizontal view to capture a tall, narrow slice
-        const portraitWidth = 0.4;
-        const offsetX = (1 - portraitWidth) / 2;
-        camera.viewport.x = offsetX;
-        camera.viewport.width = portraitWidth;
-
-        // Render one frame with the narrow viewport
-        this.engine.scenes[0].render();
-
-        const dataUrl = await Tools.CreateScreenshotAsync(
+        const dataUrl = await Tools.CreateScreenshotUsingRenderTargetAsync(
           this.engine, camera, { width: 256, height: 340 },
         );
         manifest.metadata.thumbnail = dataUrl;
-
-        // Restore original viewport
-        camera.viewport = origViewport;
       } catch (err) {
         console.warn('[Outfits] Screenshot failed:', err);
       }
