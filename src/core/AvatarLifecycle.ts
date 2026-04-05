@@ -1,22 +1,18 @@
-import type { AvatarConfig, AvatarState, VRMStructure } from '../types/index.js';
+import type { AvatarConfig, AvatarState } from '../types/index.js';
+import type { OpenSimStructure } from '../types/opensim.js';
 import { AvatarEngine } from './AvatarEngine.js';
 import { LightingSetup } from '../scene/LightingSetup.js';
 import { Background } from '../scene/Background.js';
 import { DressingRoomCamera } from '../camera/DressingRoomCamera.js';
 import { Sidebar } from '../hud/Sidebar.js';
-import { VRMAnalyzer } from '../avatar/VRMAnalyzer.js';
-import { MaterialEditor } from '../avatar/MaterialEditor.js';
-import { CatalogLoader } from '../avatar/CatalogLoader.js';
-import { ClothingManager } from '../avatar/ClothingManager.js';
-import { HairSwapper } from '../avatar/HairSwapper.js';
+import { OpenSimLoader } from '../avatar/OpenSimLoader.js';
 import type { PostMessageBridge } from '../bridge/PostMessageBridge.js';
-import { SceneLoader, TransformNode, Vector3 } from '@babylonjs/core';
-import type { AbstractMesh, Skeleton } from '@babylonjs/core';
+import type { AbstractMesh, TransformNode } from '@babylonjs/core';
 import '@babylonjs/loaders/glTF';
 
 /**
  * Orchestrates the Avatar lifecycle: spawn → run → dispose.
- * Simplified from GlitchLifecycle (no mannequin/physics/animation).
+ * Phase 0: OpenSim pipeline (Ruth2/Roth2).
  */
 export class AvatarLifecycle {
   private state: AvatarState = 'idle';
@@ -29,12 +25,7 @@ export class AvatarLifecycle {
 
   private modelRoot: TransformNode | null = null;
   private modelMeshes: AbstractMesh[] = [];
-  private avatarSkeleton: Skeleton | null = null;
-  private vrmStructure: VRMStructure | null = null;
-  private materialEditor: MaterialEditor | null = null;
-  private catalogLoader: CatalogLoader | null = null;
-  private clothingManager: ClothingManager | null = null;
-  private hairSwapper: HairSwapper | null = null;
+  private opensimStructure: OpenSimStructure | null = null;
 
   private container: HTMLElement;
   private canvas: HTMLCanvasElement;
@@ -74,36 +65,21 @@ export class AvatarLifecycle {
       // 3. Background (radial glow over black)
       this.background = new Background(scene);
 
-      // 4. Load VRM/GLB model
-      await this.loadModel(config.modelPath);
+      // 4. Load OpenSim model + detect skeleton + apply default shape params
+      const loader = new OpenSimLoader();
+      const result = await loader.load(config.modelPath, scene);
 
-      // 4a. Analyze VRM structure
-      const analyzer = new VRMAnalyzer();
-      this.vrmStructure = analyzer.analyze(this.modelMeshes);
+      this.modelRoot = result.root;
+      this.modelMeshes = result.meshes;
+      this.opensimStructure = result.structure;
+
       console.log(
-        `[Avatar] VRM analyzed: mode=${this.vrmStructure.clothingMode}, gender=${this.vrmStructure.gender}, ` +
-          `body=${this.vrmStructure.bodyPrimitives.length}, face=${this.vrmStructure.facePrimitives.length}, ` +
-          `hair=${this.vrmStructure.hairPrimitives.length}, cloth=${this.vrmStructure.clothPrimitives.length}`,
+        `[Avatar] OpenSim avatar ready: ${result.structure.boneCount} bones, ` +
+        `${result.structure.meshParts.size} mesh parts, ` +
+        `${result.structure.animationBones.size} animation bones, ` +
+        `${result.structure.collisionVolumes.size} CVs, ` +
+        `${result.structure.faceBones.size} face bones`,
       );
-
-      // 4b. Material editor + texture cache for HSL remapping
-      this.materialEditor = new MaterialEditor();
-      await this.materialEditor.initTextureCache(this.vrmStructure, scene);
-
-      // 4c. Load catalog + clothing/hair managers
-      try {
-        this.catalogLoader = new CatalogLoader();
-        await this.catalogLoader.load();
-
-        if (this.avatarSkeleton && this.modelRoot) {
-          this.clothingManager = new ClothingManager(scene, this.modelRoot, this.avatarSkeleton);
-          this.hairSwapper = new HairSwapper(scene, this.modelRoot, this.avatarSkeleton);
-          this.hairSwapper.setOriginalHair(this.vrmStructure);
-        }
-        console.log('[Avatar] Catalog + clothing/hair managers ready');
-      } catch (err) {
-        console.warn('[Avatar] Catalog load failed (wardrobe disabled):', err);
-      }
 
       // 5. Camera (orbit around loaded model)
       this.camera = new DressingRoomCamera(scene, this.canvas);
@@ -113,12 +89,6 @@ export class AvatarLifecycle {
       this.sidebar = new Sidebar(this.container);
       if (!config.showSidebar) {
         this.sidebar.setVisible(false);
-      }
-      if (this.vrmStructure && this.materialEditor) {
-        this.sidebar.connectAvatar(this.materialEditor, this.vrmStructure);
-      }
-      if (this.catalogLoader && this.clothingManager && this.hairSwapper) {
-        this.sidebar.connectWardrobe(this.catalogLoader, this.clothingManager, this.hairSwapper);
       }
 
       // 7. Per-frame updates
@@ -154,50 +124,16 @@ export class AvatarLifecycle {
     }
   }
 
-  private async loadModel(modelPath: string): Promise<void> {
-    const scene = this.avatarEngine!.getScene();
-
-    const lastSlash = modelPath.lastIndexOf('/');
-    const rootUrl = lastSlash >= 0 ? modelPath.substring(0, lastSlash + 1) : '';
-    const fileName = lastSlash >= 0 ? modelPath.substring(lastSlash + 1) : modelPath;
-
-    // VRM files are GLB format — force the glTF loader via pluginExtension
-    const isVRM = fileName.toLowerCase().endsWith('.vrm');
-
-    const result = await SceneLoader.ImportMeshAsync(
-      '',
-      rootUrl,
-      fileName,
-      scene,
-      undefined,
-      isVRM ? '.glb' : undefined,
-    );
-
-    // Parent all root meshes under a single transform node
-    this.modelRoot = new TransformNode('avatarRoot', scene);
-    for (const mesh of result.meshes) {
-      if (!mesh.parent) {
-        mesh.parent = this.modelRoot;
-      }
-    }
-    this.modelMeshes = result.meshes;
-    if (result.skeletons.length > 0) {
-      this.avatarSkeleton = result.skeletons[0];
-    }
-
-    this.modelRoot.position = Vector3.Zero();
-
-    console.log(
-      `[Avatar] Model loaded: ${fileName} (${result.meshes.length} meshes, ${result.skeletons.length} skeletons)`,
-    );
-  }
-
   getSidebar(): Sidebar | null {
     return this.sidebar;
   }
 
   getState(): AvatarState {
     return this.state;
+  }
+
+  getOpenSimStructure(): OpenSimStructure | null {
+    return this.opensimStructure;
   }
 
   private dumpSceneState(): void {
@@ -227,11 +163,14 @@ export class AvatarLifecycle {
       const p = this.modelRoot.position;
       console.log(`model pos: (${p.x.toFixed(2)}, ${p.y.toFixed(2)}, ${p.z.toFixed(2)})`);
     }
-    if (this.vrmStructure) {
-      const s = this.vrmStructure;
-      console.log(`VRM: mode=${s.clothingMode} gender=${s.gender}`);
-      console.log(`  body=${s.bodyPrimitives.length} face=${s.facePrimitives.length} hair=${s.hairPrimitives.length} cloth=${s.clothPrimitives.length}`);
-      console.log(`  morphs=${s.morphTargetNames.length} materialRefs: skin=${s.materialRefs.bodySkin.length} eyes=${s.materialRefs.eyeIris.length} hair=${s.materialRefs.hair.length} mouth=${s.materialRefs.mouth.length}`);
+    if (this.opensimStructure) {
+      const s = this.opensimStructure;
+      console.log(`OpenSim: ${s.boneCount} bones total`);
+      console.log(`  animation=${s.animationBones.size} CVs=${s.collisionVolumes.size} face=${s.faceBones.size} finger=${s.fingerBones.size}`);
+      console.log(`  meshParts=${s.meshParts.size}`);
+      for (const [, part] of s.meshParts) {
+        console.log(`    "${part.name}" → ${part.category}`);
+      }
     }
     console.log('===== END DUMP =====');
   }
@@ -279,17 +218,7 @@ export class AvatarLifecycle {
       window.removeEventListener('keydown', this.debugKeyHandler);
     }
 
-    // Dispose in reverse order
-    this.clothingManager?.dispose();
-    this.hairSwapper?.dispose();
-    this.clothingManager = null;
-    this.hairSwapper = null;
-    this.catalogLoader = null;
-    this.avatarSkeleton = null;
-
-    this.materialEditor?.dispose();
-    this.materialEditor = null;
-    this.vrmStructure = null;
+    this.opensimStructure = null;
     this.sidebar?.dispose();
 
     for (const mesh of this.modelMeshes) {

@@ -20,9 +20,18 @@ export interface AvatarSpawnPayload {
 
 export const AVATAR_DEFAULTS: AvatarConfig = {
   label: 'Avatar Dev',
-  modelPath: 'assets/nude-feminine.vrm',
+  modelPath: 'assets/ruth2-feminine.glb',
   showSidebar: true,
 };
+
+// Re-export OpenSim types for convenience
+export type {
+  OpenSimStructure,
+  OpenSimMeshPart,
+  MeshPartCategory,
+  BoneCategory,
+  BoneInfo,
+} from './opensim.js';
 
 // ---------------------------------------------------------------------------
 // VRM structure types (Sprint 1)

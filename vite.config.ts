@@ -11,6 +11,9 @@ export default defineConfig({
   server: {
     port: 3002,
     host: true,
+    watch: {
+      ignored: ['**/extracted-assets/**', '**/node_modules/**'],
+    },
   },
   build: {
     target: 'es2022',

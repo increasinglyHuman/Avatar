@@ -27,6 +27,9 @@ Thumbs.db
 *.vrm
 *.glb
 *.gltf
+# Exception: base avatar models (Ruth2/Roth2) are tracked
+!public/assets/ruth2-*.glb
+!public/assets/roth2-*.glb
 
 # Certificates
 *.pem

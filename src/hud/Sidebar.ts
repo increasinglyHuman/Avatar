@@ -3,11 +3,6 @@ import type { TabId } from './TabBar.js';
 import { BodyTab } from './BodyTab.js';
 import { OutfitsTab } from './OutfitsTab.js';
 import { WardrobeTab } from './WardrobeTab.js';
-import type { MaterialEditor } from '../avatar/MaterialEditor.js';
-import type { ClothingManager } from '../avatar/ClothingManager.js';
-import type { HairSwapper } from '../avatar/HairSwapper.js';
-import type { CatalogLoader } from '../avatar/CatalogLoader.js';
-import type { VRMStructure } from '../types/index.js';
 
 const SIDEBAR_STYLES = `
   #avatar-sidebar {
@@ -192,7 +187,7 @@ const SIDEBAR_STYLES = `
 
 /**
  * Sidebar shell with tab system.
- * Sprint 1: Body tab functional, Outfits/Wardrobe placeholders.
+ * Phase 0: Shell with placeholder tabs (OpenSim pivot).
  */
 export class Sidebar {
   private root: HTMLDivElement;
@@ -216,7 +211,7 @@ export class Sidebar {
     // Header
     const header = document.createElement('div');
     header.className = 'sidebar-header';
-    header.textContent = 'Fit';
+    header.textContent = 'Avatar';
     this.root.appendChild(header);
 
     // Tab bar
@@ -250,18 +245,6 @@ export class Sidebar {
 
     this.root.appendChild(footer);
     container.appendChild(this.root);
-  }
-
-  connectAvatar(editor: MaterialEditor, structure: VRMStructure): void {
-    this.bodyTab.connect(editor, structure);
-  }
-
-  connectWardrobe(
-    catalog: CatalogLoader,
-    clothingMgr: ClothingManager,
-    hairSwapper: HairSwapper,
-  ): void {
-    this.wardrobeTab.connect(catalog, clothingMgr, hairSwapper);
   }
 
   setFPS(fps: number): void {
