@@ -8,6 +8,9 @@ import { Sidebar } from '../hud/Sidebar.js';
 import { OpenSimLoader } from '../avatar/OpenSimLoader.js';
 import { ShapeParameterDriver } from '../avatar/ShapeParameterDriver.js';
 import { SkinMaterialManager } from '../avatar/SkinMaterialManager.js';
+import { OpenSimClothingManager } from '../avatar/OpenSimClothingManager.js';
+import { AlphaMaskManager } from '../avatar/AlphaMaskManager.js';
+import { OpenSimCatalog } from '../avatar/OpenSimCatalog.js';
 import type { PostMessageBridge } from '../bridge/PostMessageBridge.js';
 import type { AbstractMesh, TransformNode } from '@babylonjs/core';
 import '@babylonjs/loaders/glTF';
@@ -30,6 +33,9 @@ export class AvatarLifecycle {
   private opensimStructure: OpenSimStructure | null = null;
   private shapeDriver: ShapeParameterDriver | null = null;
   private skinManager: SkinMaterialManager | null = null;
+  private clothingManager: OpenSimClothingManager | null = null;
+  private alphaMaskManager: AlphaMaskManager | null = null;
+  private catalog: OpenSimCatalog | null = null;
 
   private container: HTMLElement;
   private canvas: HTMLCanvasElement;
@@ -96,13 +102,22 @@ export class AvatarLifecycle {
       // 7. Skin material manager
       this.skinManager = new SkinMaterialManager(scene, result.structure);
 
-      // 8. Sidebar + connect subsystems
+      // 8. Wardrobe system (clothing manager + alpha masking + catalog)
+      this.clothingManager = new OpenSimClothingManager(
+        scene, result.root, result.structure.skeleton,
+      );
+      this.alphaMaskManager = new AlphaMaskManager(result.structure);
+      this.catalog = new OpenSimCatalog();
+      await this.catalog.load();
+
+      // 9. Sidebar + connect subsystems
       this.sidebar = new Sidebar(this.container);
       if (!config.showSidebar) {
         this.sidebar.setVisible(false);
       }
       this.sidebar.connectShapeDriver(this.shapeDriver);
       this.sidebar.connectSkinManager(this.skinManager);
+      this.sidebar.connectWardrobe(this.catalog, this.clothingManager, this.alphaMaskManager);
 
       // 9. Per-frame updates
       scene.registerBeforeRender(() => {
@@ -235,6 +250,11 @@ export class AvatarLifecycle {
     this.shapeDriver = null;
     this.skinManager?.dispose();
     this.skinManager = null;
+    this.clothingManager?.dispose();
+    this.clothingManager = null;
+    this.alphaMaskManager?.dispose();
+    this.alphaMaskManager = null;
+    this.catalog = null;
     this.sidebar?.dispose();
 
     for (const mesh of this.modelMeshes) {

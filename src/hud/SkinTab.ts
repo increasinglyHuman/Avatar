@@ -75,6 +75,12 @@ interface SkinTextureOption {
 
 const UPPER_BODY_SKINS: SkinTextureOption[] = [
   {
+    id: 'upper-pleiades',
+    label: 'Pleiades',
+    path: 'assets/upper-drafts/pleiades_upper.png',
+    thumbnail: 'assets/upper-drafts/pleiades_upper.png',
+  },
+  {
     id: 'upper-light-freckle',
     label: 'Light',
     path: 'assets/upper-drafts/Meshy_AI_7ff094c01d8cd7f34cb63c3c053fa1451abb297629cca8bebb088645596e5b53.png',
@@ -102,6 +108,12 @@ const UPPER_BODY_SKINS: SkinTextureOption[] = [
 
 const LOWER_BODY_SKINS: SkinTextureOption[] = [
   {
+    id: 'lower-pleiades',
+    label: 'Pleiades',
+    path: 'assets/lower-drafts/pleiades_lower.png',
+    thumbnail: 'assets/lower-drafts/pleiades_lower.png',
+  },
+  {
     id: 'lower-a',
     label: 'A',
     path: 'assets/lower-drafts/Meshy_AI_25d9530f74e58599f6769becb04f080d20857ba3fb9c9200a1e832cd6bf1e5c8.png',
@@ -128,6 +140,12 @@ const LOWER_BODY_SKINS: SkinTextureOption[] = [
 ];
 
 const HEAD_SKINS: SkinTextureOption[] = [
+  {
+    id: 'head-pleiades',
+    label: 'Pleiades',
+    path: 'assets/heads-draft/pleiades_face.png',
+    thumbnail: 'assets/heads-draft/pleiades_face.png',
+  },
   {
     id: 'head-a',
     label: 'A',

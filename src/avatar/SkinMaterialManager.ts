@@ -61,6 +61,12 @@ export class SkinMaterialManager {
       `${this.lowerBodyMats.length} lower, ${this.headMats.length} head, ` +
       `${this.eyeMats.length} eye, ${this.nailMainMats.length + this.nailTipMats.length} nail`,
     );
+
+    // Apply default skin set (Pleiades)
+    this.setUpperBodySkin('assets/upper-drafts/pleiades_upper.png');
+    this.setLowerBodySkin('assets/lower-drafts/pleiades_lower.png');
+    this.setHeadSkin('assets/heads-draft/pleiades_face.png');
+    console.log('[SkinMaterial] Default skin applied: Pleiades set');
   }
 
   /**

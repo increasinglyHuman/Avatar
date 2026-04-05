@@ -6,6 +6,9 @@ import { OutfitsTab } from './OutfitsTab.js';
 import { WardrobeTab } from './WardrobeTab.js';
 import type { ShapeParameterDriver } from '../avatar/ShapeParameterDriver.js';
 import type { SkinMaterialManager } from '../avatar/SkinMaterialManager.js';
+import type { OpenSimClothingManager } from '../avatar/OpenSimClothingManager.js';
+import type { OpenSimCatalog } from '../avatar/OpenSimCatalog.js';
+import type { AlphaMaskManager } from '../avatar/AlphaMaskManager.js';
 
 const SIDEBAR_STYLES = `
   #avatar-sidebar {
@@ -258,6 +261,14 @@ export class Sidebar {
 
   connectSkinManager(manager: SkinMaterialManager): void {
     this.skinTab.connectManager(manager);
+  }
+
+  connectWardrobe(
+    catalog: OpenSimCatalog,
+    clothingMgr: OpenSimClothingManager,
+    alphaMgr: AlphaMaskManager,
+  ): void {
+    this.wardrobeTab.connect(catalog, clothingMgr, alphaMgr);
   }
 
   setFPS(fps: number): void {
