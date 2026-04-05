@@ -11,6 +11,8 @@ import { SkinMaterialManager } from '../avatar/SkinMaterialManager.js';
 import { OpenSimClothingManager } from '../avatar/OpenSimClothingManager.js';
 import { AlphaMaskManager } from '../avatar/AlphaMaskManager.js';
 import { OpenSimCatalog } from '../avatar/OpenSimCatalog.js';
+import { ManifestSerializer } from '../avatar/ManifestSerializer.js';
+import { OutfitStore } from '../avatar/OutfitStore.js';
 import type { PostMessageBridge } from '../bridge/PostMessageBridge.js';
 import type { AbstractMesh, TransformNode } from '@babylonjs/core';
 import '@babylonjs/loaders/glTF';
@@ -36,6 +38,8 @@ export class AvatarLifecycle {
   private clothingManager: OpenSimClothingManager | null = null;
   private alphaMaskManager: AlphaMaskManager | null = null;
   private catalog: OpenSimCatalog | null = null;
+  private manifestSerializer: ManifestSerializer | null = null;
+  private outfitStore: OutfitStore | null = null;
 
   private container: HTMLElement;
   private canvas: HTMLCanvasElement;
@@ -110,7 +114,13 @@ export class AvatarLifecycle {
       this.catalog = new OpenSimCatalog();
       await this.catalog.load();
 
-      // 9. Sidebar + connect subsystems
+      // 9. Outfit system (manifest serialization + localStorage persistence)
+      this.manifestSerializer = new ManifestSerializer(
+        this.shapeDriver, this.skinManager, this.clothingManager,
+      );
+      this.outfitStore = new OutfitStore();
+
+      // 10. Sidebar + connect all subsystems
       this.sidebar = new Sidebar(this.container);
       if (!config.showSidebar) {
         this.sidebar.setVisible(false);
@@ -118,6 +128,7 @@ export class AvatarLifecycle {
       this.sidebar.connectShapeDriver(this.shapeDriver);
       this.sidebar.connectSkinManager(this.skinManager);
       this.sidebar.connectWardrobe(this.catalog, this.clothingManager, this.alphaMaskManager);
+      this.sidebar.connectOutfits(this.manifestSerializer, this.outfitStore);
 
       // 9. Per-frame updates
       scene.registerBeforeRender(() => {
@@ -255,6 +266,8 @@ export class AvatarLifecycle {
     this.alphaMaskManager?.dispose();
     this.alphaMaskManager = null;
     this.catalog = null;
+    this.manifestSerializer = null;
+    this.outfitStore = null;
     this.sidebar?.dispose();
 
     for (const mesh of this.modelMeshes) {

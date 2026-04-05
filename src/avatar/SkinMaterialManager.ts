@@ -26,8 +26,13 @@ export class SkinMaterialManager {
   private nailTipMats: PBRMaterial[] = [];
   private nailSkinMats: PBRMaterial[] = [];
 
-  /** Current state */
+  /** Current state tracking */
   private currentSkinTint: Color3 = Color3.White();
+  private currentEyeColor = '#7B3F00';
+  private currentNailColor = '#DDB8A0';
+  private activeUpperSkin: string | null = null;
+  private activeLowerSkin: string | null = null;
+  private activeHeadSkin: string | null = null;
 
   constructor(scene: Scene, structure: OpenSimStructure) {
     this.scene = scene;
@@ -78,6 +83,7 @@ export class SkinMaterialManager {
     for (const mat of this.upperBodyMats) {
       mat.albedoTexture = tex;
     }
+    this.activeUpperSkin = texturePath;
     console.log(`[SkinMaterial] Upper body skin → ${texturePath}`);
   }
 
@@ -89,6 +95,7 @@ export class SkinMaterialManager {
     for (const mat of this.lowerBodyMats) {
       mat.albedoTexture = tex;
     }
+    this.activeLowerSkin = texturePath;
     console.log(`[SkinMaterial] Lower body skin → ${texturePath}`);
   }
 
@@ -100,6 +107,7 @@ export class SkinMaterialManager {
     for (const mat of this.headMats) {
       mat.albedoTexture = tex;
     }
+    this.activeHeadSkin = texturePath;
     console.log(`[SkinMaterial] Head skin → ${texturePath}`);
   }
 
@@ -125,20 +133,30 @@ export class SkinMaterialManager {
    */
   setEyeColor(hex: string): void {
     const color = Color3.FromHexString(hex);
+    this.currentEyeColor = hex;
     for (const mat of this.eyeMats) {
       mat.albedoColor = color;
     }
   }
+
+  getEyeColor(): string { return this.currentEyeColor; }
 
   /**
    * Set nail polish color (main nail body).
    */
   setNailColor(hex: string): void {
     const color = Color3.FromHexString(hex);
+    this.currentNailColor = hex;
     for (const mat of this.nailMainMats) {
       mat.albedoColor = color;
     }
   }
+
+  getNailColor(): string { return this.currentNailColor; }
+
+  getActiveUpperSkin(): string | null { return this.activeUpperSkin; }
+  getActiveLowerSkin(): string | null { return this.activeLowerSkin; }
+  getActiveHeadSkin(): string | null { return this.activeHeadSkin; }
 
   /**
    * Set nail tip color (for French manicure style).

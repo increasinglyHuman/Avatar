@@ -9,6 +9,8 @@ import type { SkinMaterialManager } from '../avatar/SkinMaterialManager.js';
 import type { OpenSimClothingManager } from '../avatar/OpenSimClothingManager.js';
 import type { OpenSimCatalog } from '../avatar/OpenSimCatalog.js';
 import type { AlphaMaskManager } from '../avatar/AlphaMaskManager.js';
+import type { ManifestSerializer } from '../avatar/ManifestSerializer.js';
+import type { OutfitStore } from '../avatar/OutfitStore.js';
 
 const SIDEBAR_STYLES = `
   #avatar-sidebar {
@@ -261,6 +263,13 @@ export class Sidebar {
 
   connectSkinManager(manager: SkinMaterialManager): void {
     this.skinTab.connectManager(manager);
+  }
+
+  connectOutfits(serializer: ManifestSerializer, store: OutfitStore): void {
+    this.outfitsTab.connect(serializer, store, () => {
+      // When an outfit is loaded, the shape sliders need to resync
+      // Future: also resync skin tab selections
+    });
   }
 
   connectWardrobe(
