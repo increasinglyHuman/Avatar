@@ -1,3 +1,5 @@
+import { Tools } from '@babylonjs/core';
+import type { Engine, WebGPUEngine } from '@babylonjs/core';
 import type { ManifestSerializer } from '../avatar/ManifestSerializer.js';
 import type { OutfitStore } from '../avatar/OutfitStore.js';
 import type { SavedOutfit } from '../types/manifest.js';
@@ -150,6 +152,7 @@ export class OutfitsTab {
 
   private serializer: ManifestSerializer | null = null;
   private store: OutfitStore | null = null;
+  private engine: Engine | WebGPUEngine | null = null;
   private onOutfitLoad: (() => void) | null = null;
 
   constructor(container: HTMLElement) {
@@ -184,10 +187,12 @@ export class OutfitsTab {
   connect(
     serializer: ManifestSerializer,
     store: OutfitStore,
+    engine: Engine | WebGPUEngine,
     onOutfitLoad: () => void,
   ): void {
     this.serializer = serializer;
     this.store = store;
+    this.engine = engine;
     this.onOutfitLoad = onOutfitLoad;
     this.renderGrid();
   }
@@ -364,9 +369,20 @@ export class OutfitsTab {
     this.saveArea.appendChild(saveBtn);
   }
 
-  private handleSave(name: string): void {
+  private async handleSave(name: string): Promise<void> {
     if (!this.serializer || !this.store) return;
     const manifest = this.serializer.capture(name);
+
+    // Capture screenshot as thumbnail
+    if (this.engine) {
+      try {
+        const dataUrl = await Tools.CreateScreenshotAsync(this.engine, this.engine.scenes[0].activeCamera!, { width: 256, height: 340 });
+        manifest.metadata.thumbnail = dataUrl;
+      } catch (err) {
+        console.warn('[Outfits] Screenshot failed:', err);
+      }
+    }
+
     this.store.save(manifest);
     this.renderGrid();
   }

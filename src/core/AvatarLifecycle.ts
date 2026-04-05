@@ -128,7 +128,9 @@ export class AvatarLifecycle {
       this.sidebar.connectShapeDriver(this.shapeDriver);
       this.sidebar.connectSkinManager(this.skinManager);
       this.sidebar.connectWardrobe(this.catalog, this.clothingManager, this.alphaMaskManager);
-      this.sidebar.connectOutfits(this.manifestSerializer, this.outfitStore);
+      this.sidebar.connectOutfits(
+        this.manifestSerializer, this.outfitStore, this.avatarEngine.getEngine(),
+      );
 
       // 9. Per-frame updates
       scene.registerBeforeRender(() => {
