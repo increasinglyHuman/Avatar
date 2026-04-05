@@ -51,7 +51,7 @@ function injectStyles(): void {
   border-color: rgba(100,180,255,0.5);
 }
 .outfit-thumb {
-  aspect-ratio: 3/4;
+  aspect-ratio: 4/3;
   background: rgba(255,255,255,0.02);
   display: flex; align-items: center; justify-content: center;
   color: rgba(255,255,255,0.1);
@@ -376,7 +376,7 @@ export class OutfitsTab {
     // Capture screenshot as thumbnail
     if (this.engine) {
       try {
-        const dataUrl = await Tools.CreateScreenshotAsync(this.engine, this.engine.scenes[0].activeCamera!, { width: 256, height: 340 });
+        const dataUrl = await Tools.CreateScreenshotAsync(this.engine, this.engine.scenes[0].activeCamera!, { width: 340, height: 256 });
         manifest.metadata.thumbnail = dataUrl;
       } catch (err) {
         console.warn('[Outfits] Screenshot failed:', err);
