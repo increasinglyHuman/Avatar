@@ -51,7 +51,7 @@ function injectStyles(): void {
   border-color: rgba(100,180,255,0.5);
 }
 .outfit-thumb {
-  aspect-ratio: 4/3;
+  aspect-ratio: 3/4;
   background: rgba(255,255,255,0.02);
   display: flex; align-items: center; justify-content: center;
   color: rgba(255,255,255,0.1);
@@ -373,11 +373,31 @@ export class OutfitsTab {
     if (!this.serializer || !this.store) return;
     const manifest = this.serializer.capture(name);
 
-    // Capture screenshot as thumbnail
+    // Capture screenshot as portrait thumbnail.
+    // Temporarily override the camera viewport to portrait aspect ratio
+    // so the capture frames the avatar tightly (not a landscape crop).
     if (this.engine) {
       try {
-        const dataUrl = await Tools.CreateScreenshotAsync(this.engine, this.engine.scenes[0].activeCamera!, { width: 340, height: 256 });
+        const camera = this.engine.scenes[0].activeCamera!;
+        const origViewport = camera.viewport.clone();
+
+        // Set a narrow centered viewport to simulate portrait framing
+        // This crops the horizontal view to capture a tall, narrow slice
+        const portraitWidth = 0.4;
+        const offsetX = (1 - portraitWidth) / 2;
+        camera.viewport.x = offsetX;
+        camera.viewport.width = portraitWidth;
+
+        // Render one frame with the narrow viewport
+        this.engine.scenes[0].render();
+
+        const dataUrl = await Tools.CreateScreenshotAsync(
+          this.engine, camera, { width: 256, height: 340 },
+        );
         manifest.metadata.thumbnail = dataUrl;
+
+        // Restore original viewport
+        camera.viewport = origViewport;
       } catch (err) {
         console.warn('[Outfits] Screenshot failed:', err);
       }
