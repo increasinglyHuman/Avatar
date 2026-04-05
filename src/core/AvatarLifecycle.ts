@@ -6,6 +6,7 @@ import { Background } from '../scene/Background.js';
 import { DressingRoomCamera } from '../camera/DressingRoomCamera.js';
 import { Sidebar } from '../hud/Sidebar.js';
 import { OpenSimLoader } from '../avatar/OpenSimLoader.js';
+import { ShapeParameterDriver } from '../avatar/ShapeParameterDriver.js';
 import type { PostMessageBridge } from '../bridge/PostMessageBridge.js';
 import type { AbstractMesh, TransformNode } from '@babylonjs/core';
 import '@babylonjs/loaders/glTF';
@@ -26,6 +27,7 @@ export class AvatarLifecycle {
   private modelRoot: TransformNode | null = null;
   private modelMeshes: AbstractMesh[] = [];
   private opensimStructure: OpenSimStructure | null = null;
+  private shapeDriver: ShapeParameterDriver | null = null;
 
   private container: HTMLElement;
   private canvas: HTMLCanvasElement;
@@ -85,19 +87,24 @@ export class AvatarLifecycle {
       this.camera = new DressingRoomCamera(scene, this.canvas);
       this.camera.focusOnModel(this.modelRoot);
 
-      // 6. Sidebar
+      // 6. Shape parameter driver (the flagship feature)
+      this.shapeDriver = new ShapeParameterDriver(result.structure.skeleton);
+      console.log(`[Avatar] Shape parameter driver initialized`);
+
+      // 7. Sidebar + connect shape driver
       this.sidebar = new Sidebar(this.container);
       if (!config.showSidebar) {
         this.sidebar.setVisible(false);
       }
+      this.sidebar.connectShapeDriver(this.shapeDriver);
 
-      // 7. Per-frame updates
+      // 8. Per-frame updates
       scene.registerBeforeRender(() => {
         if (!this.sidebar || !this.avatarEngine) return;
         this.sidebar.setFPS(this.avatarEngine.getFPS());
       });
 
-      // 8. Debug keys (F1 = dump state, F2 = wireframe, F3 = inspector)
+      // 9. Debug keys (F1 = dump state, F2 = wireframe, F3 = inspector)
       this.debugKeyHandler = (e: KeyboardEvent): void => {
         if (e.code === 'F1') {
           e.preventDefault();
@@ -112,7 +119,7 @@ export class AvatarLifecycle {
       };
       window.addEventListener('keydown', this.debugKeyHandler);
 
-      // 9. Start rendering
+      // 10. Start rendering
       this.avatarEngine.startRenderLoop();
 
       this.state = 'running';
@@ -219,6 +226,7 @@ export class AvatarLifecycle {
     }
 
     this.opensimStructure = null;
+    this.shapeDriver = null;
     this.sidebar?.dispose();
 
     for (const mesh of this.modelMeshes) {

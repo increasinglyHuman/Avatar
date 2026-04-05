@@ -3,6 +3,7 @@ import type { TabId } from './TabBar.js';
 import { BodyTab } from './BodyTab.js';
 import { OutfitsTab } from './OutfitsTab.js';
 import { WardrobeTab } from './WardrobeTab.js';
+import type { ShapeParameterDriver } from '../avatar/ShapeParameterDriver.js';
 
 const SIDEBAR_STYLES = `
   #avatar-sidebar {
@@ -245,6 +246,10 @@ export class Sidebar {
 
     this.root.appendChild(footer);
     container.appendChild(this.root);
+  }
+
+  connectShapeDriver(driver: ShapeParameterDriver): void {
+    this.bodyTab.connectDriver(driver);
   }
 
   setFPS(fps: number): void {

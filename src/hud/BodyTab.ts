@@ -1,37 +1,30 @@
+import type { ShapeParameterDriver } from '../avatar/ShapeParameterDriver.js';
+import { ShapeSliderPanel } from './ShapeSliderPanel.js';
+
 /**
- * Body/Shape tab — placeholder for Phase 1 (parametric shape sliders).
- * VRM color editing has been retired; OpenSim shape sliders coming in ADR-010.
+ * Shape tab — parametric body & face sliders.
+ * Wraps ShapeSliderPanel and connects to the ShapeParameterDriver.
  */
 export class BodyTab {
   private root: HTMLDivElement;
+  private panel: ShapeSliderPanel | null = null;
 
   constructor(container: HTMLElement) {
     this.root = document.createElement('div');
     this.root.className = 'tab-content body-tab';
-
-    const placeholder = document.createElement('div');
-    placeholder.className = 'placeholder-tab';
-    placeholder.style.flexDirection = 'column';
-    placeholder.style.gap = '12px';
-    placeholder.style.textAlign = 'center';
-
-    const title = document.createElement('div');
-    title.textContent = 'Shape';
-    title.style.fontSize = '16px';
-    title.style.color = 'rgba(255, 255, 255, 0.4)';
-    placeholder.appendChild(title);
-
-    const subtitle = document.createElement('div');
-    subtitle.textContent = 'Parametric body & face sliders — Phase 1';
-    subtitle.style.fontSize = '11px';
-    placeholder.appendChild(subtitle);
-
-    this.root.appendChild(placeholder);
     container.appendChild(this.root);
   }
 
+  /** Connect the driver to create the slider panel */
+  connectDriver(driver: ShapeParameterDriver): void {
+    // Dispose existing panel if reconnecting
+    this.panel?.dispose();
+    this.root.innerHTML = '';
+    this.panel = new ShapeSliderPanel(this.root, driver);
+  }
+
   show(): void {
-    this.root.style.display = 'flex';
+    this.root.style.display = 'block';
   }
 
   hide(): void {
@@ -39,6 +32,8 @@ export class BodyTab {
   }
 
   dispose(): void {
+    this.panel?.dispose();
+    this.panel = null;
     this.root.remove();
   }
 }
