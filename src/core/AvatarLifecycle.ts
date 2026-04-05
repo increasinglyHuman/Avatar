@@ -7,6 +7,7 @@ import { DressingRoomCamera } from '../camera/DressingRoomCamera.js';
 import { Sidebar } from '../hud/Sidebar.js';
 import { OpenSimLoader } from '../avatar/OpenSimLoader.js';
 import { ShapeParameterDriver } from '../avatar/ShapeParameterDriver.js';
+import { SkinMaterialManager } from '../avatar/SkinMaterialManager.js';
 import type { PostMessageBridge } from '../bridge/PostMessageBridge.js';
 import type { AbstractMesh, TransformNode } from '@babylonjs/core';
 import '@babylonjs/loaders/glTF';
@@ -28,6 +29,7 @@ export class AvatarLifecycle {
   private modelMeshes: AbstractMesh[] = [];
   private opensimStructure: OpenSimStructure | null = null;
   private shapeDriver: ShapeParameterDriver | null = null;
+  private skinManager: SkinMaterialManager | null = null;
 
   private container: HTMLElement;
   private canvas: HTMLCanvasElement;
@@ -91,14 +93,18 @@ export class AvatarLifecycle {
       this.shapeDriver = new ShapeParameterDriver(result.structure.skeleton);
       console.log(`[Avatar] Shape parameter driver initialized`);
 
-      // 7. Sidebar + connect shape driver
+      // 7. Skin material manager
+      this.skinManager = new SkinMaterialManager(scene, result.structure);
+
+      // 8. Sidebar + connect subsystems
       this.sidebar = new Sidebar(this.container);
       if (!config.showSidebar) {
         this.sidebar.setVisible(false);
       }
       this.sidebar.connectShapeDriver(this.shapeDriver);
+      this.sidebar.connectSkinManager(this.skinManager);
 
-      // 8. Per-frame updates
+      // 9. Per-frame updates
       scene.registerBeforeRender(() => {
         if (!this.sidebar || !this.avatarEngine) return;
         this.sidebar.setFPS(this.avatarEngine.getFPS());
@@ -227,6 +233,8 @@ export class AvatarLifecycle {
 
     this.opensimStructure = null;
     this.shapeDriver = null;
+    this.skinManager?.dispose();
+    this.skinManager = null;
     this.sidebar?.dispose();
 
     for (const mesh of this.modelMeshes) {

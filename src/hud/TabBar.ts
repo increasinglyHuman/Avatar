@@ -1,9 +1,10 @@
-export type TabId = 'outfits' | 'body' | 'wardrobe';
+export type TabId = 'outfits' | 'body' | 'skin' | 'wardrobe';
 export type TabChangeCallback = (tabId: TabId) => void;
 
 const TAB_LABELS: { id: TabId; label: string }[] = [
   { id: 'outfits', label: 'Outfits' },
-  { id: 'body', label: 'Body' },
+  { id: 'body', label: 'Shape' },
+  { id: 'skin', label: 'Skin' },
   { id: 'wardrobe', label: 'Wardrobe' },
 ];
 

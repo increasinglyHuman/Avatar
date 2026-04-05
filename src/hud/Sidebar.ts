@@ -1,9 +1,11 @@
 import { TabBar } from './TabBar.js';
 import type { TabId } from './TabBar.js';
 import { BodyTab } from './BodyTab.js';
+import { SkinTab } from './SkinTab.js';
 import { OutfitsTab } from './OutfitsTab.js';
 import { WardrobeTab } from './WardrobeTab.js';
 import type { ShapeParameterDriver } from '../avatar/ShapeParameterDriver.js';
+import type { SkinMaterialManager } from '../avatar/SkinMaterialManager.js';
 
 const SIDEBAR_STYLES = `
   #avatar-sidebar {
@@ -199,6 +201,7 @@ export class Sidebar {
   private contentArea: HTMLDivElement;
   private outfitsTab: OutfitsTab;
   private bodyTab: BodyTab;
+  private skinTab: SkinTab;
   private wardrobeTab: WardrobeTab;
 
   constructor(container: HTMLElement) {
@@ -227,6 +230,7 @@ export class Sidebar {
     // Tabs
     this.outfitsTab = new OutfitsTab(this.contentArea);
     this.bodyTab = new BodyTab(this.contentArea);
+    this.skinTab = new SkinTab(this.contentArea);
     this.wardrobeTab = new WardrobeTab(this.contentArea);
 
     // Show default tab
@@ -252,6 +256,10 @@ export class Sidebar {
     this.bodyTab.connectDriver(driver);
   }
 
+  connectSkinManager(manager: SkinMaterialManager): void {
+    this.skinTab.connectManager(manager);
+  }
+
   setFPS(fps: number): void {
     this.fpsEl.textContent = `${Math.round(fps)} FPS`;
   }
@@ -263,6 +271,7 @@ export class Sidebar {
   private switchTab(tabId: TabId): void {
     this.outfitsTab.hide();
     this.bodyTab.hide();
+    this.skinTab.hide();
     this.wardrobeTab.hide();
 
     switch (tabId) {
@@ -271,6 +280,9 @@ export class Sidebar {
         break;
       case 'body':
         this.bodyTab.show();
+        break;
+      case 'skin':
+        this.skinTab.show();
         break;
       case 'wardrobe':
         this.wardrobeTab.show();
@@ -281,6 +293,7 @@ export class Sidebar {
   dispose(): void {
     this.outfitsTab.dispose();
     this.bodyTab.dispose();
+    this.skinTab.dispose();
     this.wardrobeTab.dispose();
     this.tabBar.dispose();
     this.styleEl.remove();
