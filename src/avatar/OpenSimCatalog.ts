@@ -1,8 +1,9 @@
 import type { ClothingItem, ClothingSlot } from '../types/clothing.js';
+import { loadTextureClothingCatalog } from './TextureClothingCatalog.js';
 
 /**
  * Manages the clothing catalog — the list of available items.
- * Phase 3: starts with a static built-in catalog, later loads from NEXUS.
+ * Merges built-in mesh items with texture clothing from JSON catalog.
  *
  * The catalog is separate from equipped state (OpenSimClothingManager handles that).
  */
@@ -11,15 +12,15 @@ export class OpenSimCatalog {
   private loaded = false;
 
   /**
-   * Load the catalog. Currently uses a built-in static catalog.
-   * Will be replaced with NEXUS API fetch in Phase 4.
+   * Load the catalog. Merges built-in mesh items with texture clothing catalog.
+   * Will be extended with NEXUS API fetch later.
    */
   async load(): Promise<void> {
-    // Start with the built-in catalog
-    this.items = [...BUILT_IN_CATALOG];
+    const textureItems = await loadTextureClothingCatalog();
+    this.items = [...BUILT_IN_CATALOG, ...textureItems];
     this.loaded = true;
 
-    console.log(`[Catalog] Loaded ${this.items.length} items`);
+    console.log(`[Catalog] Loaded ${this.items.length} items (${textureItems.length} texture layers)`);
   }
 
   isLoaded(): boolean {
@@ -58,17 +59,12 @@ export class OpenSimCatalog {
 }
 
 // ---------------------------------------------------------------------------
-// Built-in catalog (placeholder items until real garments arrive)
+// Built-in catalog (mesh garments from MD/Blender pipeline)
 // ---------------------------------------------------------------------------
 
 const BUILT_IN_CATALOG: ClothingItem[] = [
-  // These are placeholder entries — no actual GLBs yet.
-  // They demonstrate the catalog structure and will be replaced
-  // with real Marvelous Designer garments as they're created.
-  //
-  // When real garments are added:
+  // Real Marvelous Designer garments will be added here as they're created.
   // 1. Export from MD → Blender → rig to SL skeleton → GLB
   // 2. Place GLB in public/assets/clothing/{slot}/
   // 3. Add entry here with correct asset path
-  // 4. Generate thumbnail (256×256)
 ];

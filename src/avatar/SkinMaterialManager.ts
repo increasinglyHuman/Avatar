@@ -28,11 +28,12 @@ export class SkinMaterialManager {
 
   /** Current state tracking */
   private currentSkinTint: Color3 = Color3.White();
-  private currentEyeColor = '#7B3F00';
+  private currentEyeColor = '#4A7DB5';
   private currentNailColor = '#DDB8A0';
   private activeUpperSkin: string | null = null;
   private activeLowerSkin: string | null = null;
   private activeHeadSkin: string | null = null;
+  private activeEyeTexture: string | null = null;
 
   constructor(scene: Scene, structure: OpenSimStructure) {
     this.scene = scene;
@@ -67,10 +68,40 @@ export class SkinMaterialManager {
       `${this.eyeMats.length} eye, ${this.nailMainMats.length + this.nailTipMats.length} nail`,
     );
 
+    // Diagnostic: compare PBR properties across all skin materials
+    const allSkin = [...this.upperBodyMats, ...this.lowerBodyMats, ...this.headMats];
+    console.log('[SkinMaterial] === PBR PROPERTY COMPARISON ===');
+    for (const mat of allSkin) {
+      console.log(
+        `  "${mat.name}" — metallic=${mat.metallic} roughness=${mat.roughness} ` +
+        `albedoColor=${mat.albedoColor?.toString()} ` +
+        `reflectivityColor=${mat.reflectivityColor?.toString()} ` +
+        `emissiveColor=${mat.emissiveColor?.toString()} ` +
+        `ambientColor=${mat.ambientColor?.toString()} ` +
+        `alpha=${mat.alpha} backFaceCulling=${mat.backFaceCulling} ` +
+        `hasTexture=${!!mat.albedoTexture}`,
+      );
+    }
+    console.log('[SkinMaterial] === END PBR COMPARISON ===');
+
     // Apply default skin set (Pleiades)
     this.setUpperBodySkin('assets/upper-drafts/pleiades_upper.png');
     this.setLowerBodySkin('assets/lower-drafts/pleiades_lower.png');
-    this.setHeadSkin('assets/heads-draft/pleiades_face.png');
+    this.setHeadSkin('assets/heads-draft/pleiades_face04.png');
+
+    // Clear the GLB's default eye texture so color tinting works cleanly
+    for (const mat of this.eyeMats) {
+      mat.albedoTexture = null;
+    }
+    this.setEyeColor(this.currentEyeColor);
+
+    // Hide eyelash mesh (renders white with no texture assigned)
+    for (const [, part] of structure.meshParts) {
+      if (part.mesh.name.toLowerCase().includes('eyelash')) {
+        part.mesh.isVisible = false;
+      }
+    }
+
     console.log('[SkinMaterial] Default skin applied: Pleiades set');
   }
 
@@ -140,6 +171,33 @@ export class SkinMaterialManager {
   }
 
   getEyeColor(): string { return this.currentEyeColor; }
+
+  /**
+   * Set eye iris texture (replaces the eyeball texture with an iris map).
+   * Resets eye color tint to white so the texture shows true colors.
+   */
+  setEyeTexture(texturePath: string): void {
+    const tex = new Texture(texturePath, this.scene, false, false);
+    for (const mat of this.eyeMats) {
+      mat.albedoTexture = tex;
+      mat.albedoColor = Color3.White(); // Don't tint over the texture
+    }
+    this.activeEyeTexture = texturePath;
+    console.log(`[SkinMaterial] Eye texture → ${texturePath}`);
+  }
+
+  /**
+   * Clear eye texture, reverting to color-tint mode.
+   */
+  clearEyeTexture(): void {
+    for (const mat of this.eyeMats) {
+      mat.albedoTexture = null;
+    }
+    this.activeEyeTexture = null;
+    this.setEyeColor(this.currentEyeColor);
+  }
+
+  getActiveEyeTexture(): string | null { return this.activeEyeTexture; }
 
   /**
    * Set nail polish color (main nail body).

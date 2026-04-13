@@ -1,3 +1,4 @@
+import * as BABYLON from '@babylonjs/core';
 import type { AvatarConfig, AvatarState } from '../types/index.js';
 import type { OpenSimStructure } from '../types/opensim.js';
 import { AvatarEngine } from './AvatarEngine.js';
@@ -9,10 +10,13 @@ import { OpenSimLoader } from '../avatar/OpenSimLoader.js';
 import { ShapeParameterDriver } from '../avatar/ShapeParameterDriver.js';
 import { SkinMaterialManager } from '../avatar/SkinMaterialManager.js';
 import { OpenSimClothingManager } from '../avatar/OpenSimClothingManager.js';
+import { TextureCompositor } from '../avatar/TextureCompositor.js';
 import { AlphaMaskManager } from '../avatar/AlphaMaskManager.js';
 import { OpenSimCatalog } from '../avatar/OpenSimCatalog.js';
 import { ManifestSerializer } from '../avatar/ManifestSerializer.js';
 import { OutfitStore } from '../avatar/OutfitStore.js';
+import { IdleAnimationManager } from '../avatar/IdleAnimationManager.js';
+import { CVBounceDriver } from '../avatar/CVBounceDriver.js';
 import type { PostMessageBridge } from '../bridge/PostMessageBridge.js';
 import type { AbstractMesh, TransformNode } from '@babylonjs/core';
 import '@babylonjs/loaders/glTF';
@@ -36,10 +40,13 @@ export class AvatarLifecycle {
   private shapeDriver: ShapeParameterDriver | null = null;
   private skinManager: SkinMaterialManager | null = null;
   private clothingManager: OpenSimClothingManager | null = null;
+  private compositor: TextureCompositor | null = null;
   private alphaMaskManager: AlphaMaskManager | null = null;
   private catalog: OpenSimCatalog | null = null;
   private manifestSerializer: ManifestSerializer | null = null;
   private outfitStore: OutfitStore | null = null;
+  private idleAnimManager: IdleAnimationManager | null = null;
+  private cvBounce: CVBounceDriver | null = null;
 
   private container: HTMLElement;
   private canvas: HTMLCanvasElement;
@@ -106,17 +113,21 @@ export class AvatarLifecycle {
       // 7. Skin material manager
       this.skinManager = new SkinMaterialManager(scene, result.structure);
 
-      // 8. Wardrobe system (clothing manager + alpha masking + catalog)
+      // 8. Wardrobe system (clothing manager + texture layers + alpha masking + catalog)
       this.clothingManager = new OpenSimClothingManager(
         scene, result.root, result.structure.skeleton,
       );
+      this.compositor = new TextureCompositor(
+        scene, result.structure, this.skinManager,
+      );
+      this.clothingManager.setCompositor(this.compositor);
       this.alphaMaskManager = new AlphaMaskManager(result.structure);
       this.catalog = new OpenSimCatalog();
       await this.catalog.load();
 
       // 9. Outfit system (manifest serialization + localStorage persistence)
       this.manifestSerializer = new ManifestSerializer(
-        this.shapeDriver, this.skinManager, this.clothingManager,
+        this.shapeDriver, this.skinManager, this.clothingManager, this.catalog,
       );
       this.outfitStore = new OutfitStore();
 
@@ -132,7 +143,23 @@ export class AvatarLifecycle {
         this.manifestSerializer, this.outfitStore, this.avatarEngine.getEngine(),
       );
 
-      // 9. Per-frame updates
+      // 11. Idle animations (retargeted in Animator, exported as animation-only GLB)
+      if (result.structure.skeleton) {
+        this.idleAnimManager = new IdleAnimationManager(scene, result.structure.skeleton);
+        await this.idleAnimManager.loadAnimation('assets/Happy_Idle_1__anim_2026-04-13.glb');
+        await this.idleAnimManager.loadAnimation('assets/Ruth_Thoughtful_Head_Shake_anim_2026-04-13.glb');
+        if (this.idleAnimManager.getCount() > 0) {
+          this.idleAnimManager.playDefault(true);
+          console.log(`[Avatar] Idle animations: ${this.idleAnimManager.getAnimationNames().join(', ')}`);
+        }
+      }
+
+      // 12. CV bounce physics (SL-compatible breast/belly/butt spring-damper)
+      if (result.structure.skeleton && this.modelRoot) {
+        this.cvBounce = new CVBounceDriver(scene, result.structure.skeleton, this.modelRoot);
+      }
+
+      // 13. Per-frame updates
       scene.registerBeforeRender(() => {
         if (!this.sidebar || !this.avatarEngine) return;
         this.sidebar.setFPS(this.avatarEngine.getFPS());
@@ -233,17 +260,35 @@ export class AvatarLifecycle {
     if (!scene) return;
 
     if (!scene.debugLayer.isVisible()) {
-      if (!document.querySelector('script[data-babylon-inspector]')) {
-        console.log('[Avatar] Loading inspector from CDN...');
-        await new Promise<void>((resolve, reject) => {
-          const script = document.createElement('script');
-          script.src = 'https://cdn.babylonjs.com/inspector/babylon.inspector.bundle.js';
-          script.setAttribute('data-babylon-inspector', '1');
-          script.onload = (): void => resolve();
-          script.onerror = (): void => reject(new Error('Failed to load inspector'));
-          document.head.appendChild(script);
+      // The Babylon.js inspector requires React and is loaded via CDN.
+      // We must load React first, then the inspector bundle.
+      const loadScript = (src: string): Promise<void> =>
+        new Promise((resolve, reject) => {
+          if (document.querySelector(`script[src="${src}"]`)) {
+            resolve();
+            return;
+          }
+          const s = document.createElement('script');
+          s.src = src;
+          s.onload = (): void => resolve();
+          s.onerror = (): void => reject(new Error(`Failed to load ${src}`));
+          document.head.appendChild(s);
         });
+
+      console.log('[Avatar] Loading inspector...');
+      // The CDN inspector expects a mutable BABYLON global.
+      // ES module exports are frozen, so we wrap in a mutable proxy.
+      const win = window as unknown as Record<string, unknown>;
+      if (!win.BABYLON) {
+        const mutableBABYLON: Record<string, unknown> = {};
+        for (const key of Object.keys(BABYLON)) {
+          mutableBABYLON[key] = (BABYLON as unknown as Record<string, unknown>)[key];
+        }
+        win.BABYLON = mutableBABYLON;
       }
+      await loadScript('https://unpkg.com/react@18/umd/react.production.min.js');
+      await loadScript('https://unpkg.com/react-dom@18/umd/react-dom.production.min.js');
+      await loadScript('https://cdn.babylonjs.com/inspector/babylon.inspector.bundle.js');
       await scene.debugLayer.show({ overlay: true });
       console.log('[Avatar] Inspector: ON');
     } else {
@@ -265,11 +310,17 @@ export class AvatarLifecycle {
     this.skinManager = null;
     this.clothingManager?.dispose();
     this.clothingManager = null;
+    this.compositor?.dispose();
+    this.compositor = null;
     this.alphaMaskManager?.dispose();
     this.alphaMaskManager = null;
     this.catalog = null;
     this.manifestSerializer = null;
     this.outfitStore = null;
+    this.idleAnimManager?.dispose();
+    this.idleAnimManager = null;
+    this.cvBounce?.dispose();
+    this.cvBounce = null;
     this.sidebar?.dispose();
 
     for (const mesh of this.modelMeshes) {

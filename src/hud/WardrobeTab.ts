@@ -11,8 +11,10 @@ const SLOT_CATEGORIES: { key: ClothingSlot; label: string; icon: string }[] = [
   { key: 'pants',      label: 'Bottoms',    icon: '👖' },
   { key: 'skirt',      label: 'Skirts',     icon: '🩳' },
   { key: 'jacket',     label: 'Jackets',    icon: '🧥' },
-  { key: 'shoes',      label: 'Shoes',      icon: '👟' },
+  { key: 'undershirt', label: 'Undershirt',  icon: '🎽' },
   { key: 'underwear',  label: 'Under',      icon: '🩲' },
+  { key: 'socks',      label: 'Socks',      icon: '🧦' },
+  { key: 'shoes',      label: 'Shoes',      icon: '👟' },
   { key: 'gloves',     label: 'Gloves',     icon: '🧤' },
   { key: 'hat',        label: 'Hats',       icon: '🎩' },
   { key: 'hair',       label: 'Hair',       icon: '💇' },
@@ -262,7 +264,7 @@ export class WardrobeTab {
     empty.appendChild(text);
 
     const hint = document.createElement('div');
-    hint.textContent = 'Garments from Marvelous Designer will appear here';
+    hint.textContent = 'More garments coming soon';
     hint.style.fontSize = '10px';
     hint.style.marginTop = '8px';
     hint.style.color = 'rgba(255,255,255,0.15)';

@@ -1,0 +1,8 @@
+# Merged Body+Face material for Marvelous Designer
+newmtl BodyFace_SKIN
+Ka 0.2 0.2 0.2
+Kd 0.8 0.8 0.8
+Ks 0.0 0.0 0.0
+d 1.0
+illum 1
+map_Kd body-skin-baseColor.png

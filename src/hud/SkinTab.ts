@@ -143,6 +143,18 @@ const HEAD_SKINS: SkinTextureOption[] = [
   {
     id: 'head-pleiades',
     label: 'Pleiades',
+    path: 'assets/heads-draft/pleiades_face04.png',
+    thumbnail: 'assets/heads-draft/pleiades_face04.png',
+  },
+  {
+    id: 'head-pleiades-01',
+    label: 'Freckles',
+    path: 'assets/heads-draft/pleiades_face01.png',
+    thumbnail: 'assets/heads-draft/pleiades_face01.png',
+  },
+  {
+    id: 'head-pleiades-clean',
+    label: 'Clean',
     path: 'assets/heads-draft/pleiades_face.png',
     thumbnail: 'assets/heads-draft/pleiades_face.png',
   },
@@ -244,14 +256,26 @@ export class SkinTab {
     const eyeWidget = new ColorSlotWidget(this.root, {
       label: 'Eye Color',
       presets: EYE_PRESETS,
-      initialColor: '#7B3F00',
+      initialColor: '#4A7DB5',
       hasIntensity: false,
       hasTint: false,
       onChange: async (hex) => {
+        this.manager?.clearEyeTexture();
         this.manager?.setEyeColor(hex);
+        // Deselect any active eye texture card
+        this.activeSelections.delete('eyes');
+        const eyeGrid = this.root.querySelector<HTMLDivElement>('.eye-texture-grid');
+        if (eyeGrid) {
+          for (const c of eyeGrid.querySelectorAll('.skin-texture-card')) {
+            c.classList.remove('active');
+          }
+        }
       },
     });
     this.widgets.set('eyes', eyeWidget);
+
+    // --- Eye Iris Textures ---
+    this.renderEyeTextureSection();
 
     // --- Nail Color ---
     const nailPresets = [
@@ -309,6 +333,49 @@ export class SkinTab {
 
       grid.appendChild(card);
     }
+    this.root.appendChild(grid);
+  }
+
+  private renderEyeTextureSection(): void {
+    const header = document.createElement('div');
+    header.className = 'skin-section-header';
+    header.textContent = 'Eye Iris Textures';
+    this.root.appendChild(header);
+
+    const grid = document.createElement('div');
+    grid.className = 'skin-texture-grid eye-texture-grid';
+    grid.style.gridTemplateColumns = 'repeat(6, 1fr)';
+    grid.style.maxHeight = '180px';
+    grid.style.overflowY = 'auto';
+
+    // Generate entries for all 106 iris textures
+    for (let i = 1; i <= 106; i++) {
+      const name = `iris-${String(i).padStart(3, '0')}.png`;
+      const path = `assets/eyes/${name}`;
+
+      const card = document.createElement('div');
+      card.className = 'skin-texture-card';
+      card.dataset.skinId = `eye-${i}`;
+
+      const img = document.createElement('img');
+      img.src = path;
+      img.alt = `Iris ${i}`;
+      img.loading = 'lazy';
+      card.appendChild(img);
+
+      card.addEventListener('click', () => {
+        if (!this.manager) return;
+        this.manager.setEyeTexture(path);
+        this.activeSelections.set('eyes', `eye-${i}`);
+        // Update active state
+        for (const c of grid.querySelectorAll<HTMLDivElement>('.skin-texture-card')) {
+          c.classList.toggle('active', c.dataset.skinId === `eye-${i}`);
+        }
+      });
+
+      grid.appendChild(card);
+    }
+
     this.root.appendChild(grid);
   }
 

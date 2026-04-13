@@ -1,6 +1,7 @@
 import type { ShapeParameterDriver } from './ShapeParameterDriver.js';
 import type { SkinMaterialManager } from './SkinMaterialManager.js';
 import type { OpenSimClothingManager } from './OpenSimClothingManager.js';
+import type { OpenSimCatalog } from './OpenSimCatalog.js';
 import type { AvatarManifest, SkinState, ColorState } from '../types/manifest.js';
 import type { ClothingSlot } from '../types/clothing.js';
 import { SHAPE_PARAMETERS } from './ShapeParameterDefinitions.js';
@@ -16,15 +17,18 @@ export class ManifestSerializer {
   private shapeDriver: ShapeParameterDriver;
   private skinManager: SkinMaterialManager;
   private clothingManager: OpenSimClothingManager;
+  private catalog: OpenSimCatalog;
 
   constructor(
     shapeDriver: ShapeParameterDriver,
     skinManager: SkinMaterialManager,
     clothingManager: OpenSimClothingManager,
+    catalog: OpenSimCatalog,
   ) {
     this.shapeDriver = shapeDriver;
     this.skinManager = skinManager;
     this.clothingManager = clothingManager;
+    this.catalog = catalog;
   }
 
   /**
@@ -107,9 +111,20 @@ export class ManifestSerializer {
       this.skinManager.setNailColor(manifest.colors.nailColor);
     }
 
-    // 4. Clothing — unequip all first, then equip from manifest
+    // 4. Clothing — unequip all first, then re-equip from manifest
     this.clothingManager.unequipAll();
-    // Note: clothing equip requires catalog items — deferred until catalog has items
+
+    if (manifest.equipped) {
+      for (const [slot, itemId] of Object.entries(manifest.equipped)) {
+        if (!itemId) continue;
+        const item = this.catalog.getById(itemId);
+        if (item) {
+          await this.clothingManager.equip(item);
+        } else {
+          console.warn(`[Manifest] Clothing item not found in catalog: ${itemId} (${slot})`);
+        }
+      }
+    }
 
     console.log(`[Manifest] Restored: "${manifest.metadata.name}"`);
   }

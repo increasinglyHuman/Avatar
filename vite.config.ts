@@ -12,7 +12,7 @@ export default defineConfig({
     port: 3002,
     host: true,
     watch: {
-      ignored: ['**/extracted-assets/**', '**/node_modules/**'],
+      ignored: ['**/extracted-assets/**', '**/extracted-clothing/**', '**/node_modules/**'],
     },
   },
   build: {

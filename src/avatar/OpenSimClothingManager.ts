@@ -2,13 +2,14 @@ import { SceneLoader } from '@babylonjs/core';
 import type { Scene, AbstractMesh, Skeleton, TransformNode } from '@babylonjs/core';
 import type { ClothingItem, ClothingSlot, EquippedClothing } from '../types/clothing.js';
 import { createEmptyEquipped } from '../types/clothing.js';
+import type { TextureCompositor } from './TextureCompositor.js';
 
 /**
  * Manages OpenSim clothing: loading GLBs, equipping/unequipping,
  * and tracking what's currently worn per slot.
  *
  * Supports three clothing types:
- * - texture: composited onto body (handled by SkinCompositor, not this class)
+ * - texture: composited onto body via TextureCompositor (layered baking)
  * - rigged: separate GLB sharing the SL skeleton
  * - fitted: rigged mesh weighted to collision volumes (auto-deforms with shape)
  *
@@ -25,6 +26,12 @@ export class OpenSimClothingManager {
   /** Loaded clothing meshes indexed by item ID */
   private loadedMeshes: Map<string, AbstractMesh[]> = new Map();
 
+  /** Track which items are texture-type (for unequip routing) */
+  private textureItems: Map<string, ClothingSlot> = new Map();
+
+  /** Texture compositor for layered texture clothing */
+  private compositor: TextureCompositor | null = null;
+
   /** Callback when equipped state changes */
   private onEquipChange: (() => void) | null = null;
 
@@ -33,6 +40,10 @@ export class OpenSimClothingManager {
     this.avatarRoot = avatarRoot;
     this.skeleton = skeleton;
     console.log('[ClothingMgr] Initialized');
+  }
+
+  setCompositor(compositor: TextureCompositor): void {
+    this.compositor = compositor;
   }
 
   setOnEquipChange(cb: () => void): void {
@@ -57,11 +68,20 @@ export class OpenSimClothingManager {
     }
 
     if (item.type === 'texture') {
-      // Texture-type clothing is handled by SkinCompositor (future)
-      console.log(`[ClothingMgr] Texture clothing "${item.name}" — compositor not yet implemented`);
-      this.equipped[item.slot] = item.id;
-      this.onEquipChange?.();
-      return true;
+      if (!this.compositor) {
+        console.warn(`[ClothingMgr] TextureCompositor not connected`);
+        return false;
+      }
+      try {
+        await this.compositor.equipClothing(item.slot, item.asset);
+        this.textureItems.set(item.id, item.slot);
+        this.equipped[item.slot] = item.id;
+        this.onEquipChange?.();
+        return true;
+      } catch (err) {
+        console.error(`[ClothingMgr] Failed to composite "${item.name}":`, err);
+        return false;
+      }
     }
 
     // Load rigged/fitted mesh clothing GLB
@@ -77,9 +97,6 @@ export class OpenSimClothingManager {
 
         // Bind to the avatar's skeleton for bone-driven deformation
         if (mesh.skeleton) {
-          // The clothing GLB has its own skeleton — we need to rebind
-          // to the avatar's skeleton. For SL-compatible clothing, bone
-          // names match directly.
           mesh.skeleton = this.skeleton;
         }
 
@@ -114,12 +131,20 @@ export class OpenSimClothingManager {
     const itemId = this.equipped[slot];
     if (!itemId) return;
 
-    const meshes = this.loadedMeshes.get(itemId);
-    if (meshes) {
-      for (const mesh of meshes) {
-        mesh.dispose();
+    // Check if this was a texture-type item
+    const texSlot = this.textureItems.get(itemId);
+    if (texSlot !== undefined && this.compositor) {
+      this.compositor.unequipClothing(texSlot);
+      this.textureItems.delete(itemId);
+    } else {
+      // Mesh-type item
+      const meshes = this.loadedMeshes.get(itemId);
+      if (meshes) {
+        for (const mesh of meshes) {
+          mesh.dispose();
+        }
+        this.loadedMeshes.delete(itemId);
       }
-      this.loadedMeshes.delete(itemId);
     }
 
     this.equipped[slot] = null;
