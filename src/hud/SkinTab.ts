@@ -104,6 +104,12 @@ const UPPER_BODY_SKINS: SkinTextureOption[] = [
     path: 'assets/upper-drafts/Meshy_AI_d0e172066f8559e71745d7f0aa0c7f8dffc25380d9c111b2a4c7a9397b05db28.png',
     thumbnail: 'assets/upper-drafts/Meshy_AI_d0e172066f8559e71745d7f0aa0c7f8dffc25380d9c111b2a4c7a9397b05db28.png',
   },
+  {
+    id: 'upper-cash',
+    label: 'Cash',
+    path: 'assets/upper-drafts/cash_upper.png',
+    thumbnail: 'assets/upper-drafts/cash_upper.png',
+  },
 ];
 
 const LOWER_BODY_SKINS: SkinTextureOption[] = [
@@ -136,6 +142,12 @@ const LOWER_BODY_SKINS: SkinTextureOption[] = [
     label: 'D',
     path: 'assets/lower-drafts/Meshy_AI_31b2e2c7d00de32abad8132abf24fd956da8837eb92891ecc60fb90f28d7ec95.png',
     thumbnail: 'assets/lower-drafts/Meshy_AI_31b2e2c7d00de32abad8132abf24fd956da8837eb92891ecc60fb90f28d7ec95.png',
+  },
+  {
+    id: 'lower-cash',
+    label: 'Cash',
+    path: 'assets/lower-drafts/cash_lower.png',
+    thumbnail: 'assets/lower-drafts/cash_lower.png',
   },
 ];
 
@@ -181,6 +193,12 @@ const HEAD_SKINS: SkinTextureOption[] = [
     label: 'D',
     path: 'assets/heads-draft/Meshy_AI_54894f791dbb5f38af48c7bdf3480b9679c71dd3d61a78aacad18c995d7ba171.png',
     thumbnail: 'assets/heads-draft/Meshy_AI_54894f791dbb5f38af48c7bdf3480b9679c71dd3d61a78aacad18c995d7ba171.png',
+  },
+  {
+    id: 'head-cash',
+    label: 'Cash',
+    path: 'assets/heads-draft/cash_face.png',
+    thumbnail: 'assets/heads-draft/cash_face.png',
   },
 ];
 
