@@ -1,6 +1,7 @@
 import { Texture, Color3 } from '@babylonjs/core';
 import type { Scene, PBRMaterial, AbstractMesh } from '@babylonjs/core';
 import type { OpenSimStructure } from '../types/opensim.js';
+import type { AvatarGender } from '../types/index.js';
 
 /**
  * Manages Ruth2/Roth2 skin materials: texture swaps, color tinting,
@@ -32,7 +33,7 @@ export class SkinMaterialManager {
   private activeHeadSkin: string | null = null;
   private activeEyeTexture: string | null = null;
 
-  constructor(scene: Scene, structure: OpenSimStructure) {
+  constructor(scene: Scene, structure: OpenSimStructure, gender: AvatarGender = 'feminine') {
     this.scene = scene;
 
     // Collect all PBR materials from visible meshes
@@ -91,16 +92,19 @@ export class SkinMaterialManager {
     }
     console.log('[SkinMaterial] === END PBR COMPARISON ===');
 
-    // Apply default skin set (Pleiades)
-    this.setUpperBodySkin('assets/upper-drafts/pleiades_upperBody.png');
-    this.setLowerBodySkin('assets/lower-drafts/pleiades_lower.png');
-    this.setHeadSkin('assets/heads-draft/pleiades_face04.png');
-
-    // Clear the GLB's default eye texture so color tinting works cleanly
-    for (const mat of this.eyeMats) {
-      mat.albedoTexture = null;
+    // Apply gender-appropriate default skin set
+    if (gender === 'masculine') {
+      this.setUpperBodySkin('assets/upper-drafts/cash_upper.png');
+      this.setLowerBodySkin('assets/lower-drafts/cash_lower.png');
+      this.setHeadSkin('assets/heads-draft/cash_face.png');
+    } else {
+      this.setUpperBodySkin('assets/upper-drafts/pleiades_upperBody.png');
+      this.setLowerBodySkin('assets/lower-drafts/pleiades_lower.png');
+      this.setHeadSkin('assets/heads-draft/pleiades_face04.png');
     }
-    this.setEyeColor(this.currentEyeColor);
+
+    // Apply a default eye iris texture
+    this.setEyeTexture('assets/eyes/iris-042.png');
 
     // Hide eyelash mesh (renders white with no texture assigned)
     for (const [, part] of structure.meshParts) {

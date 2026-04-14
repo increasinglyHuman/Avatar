@@ -22,6 +22,7 @@ import { BlinkDriver } from '../avatar/BlinkDriver.js';
 import { SpringBoneSystem } from '../avatar/SpringBoneSystem.js';
 import type { PostMessageBridge } from '../bridge/PostMessageBridge.js';
 import type { AbstractMesh, TransformNode } from '@babylonjs/core';
+import type { AvatarGender } from '../types/index.js';
 import '@babylonjs/loaders/glTF';
 
 /**
@@ -60,6 +61,7 @@ export class AvatarLifecycle {
   private debugKeyHandler: ((e: KeyboardEvent) => void) | null = null;
   private wireframeOn = false;
   private currentConfig: AvatarConfig | null = null;
+  private currentGender: AvatarGender = 'feminine';
 
   constructor(container: HTMLElement, canvas: HTMLCanvasElement) {
     this.container = container;
@@ -118,8 +120,9 @@ export class AvatarLifecycle {
       this.shapeDriver = new ShapeParameterDriver(result.structure.skeleton);
       console.log(`[Avatar] Shape parameter driver initialized`);
 
-      // 7. Skin material manager
-      this.skinManager = new SkinMaterialManager(scene, result.structure);
+      // 7. Skin material manager (gender-aware defaults)
+      this.currentGender = config.modelPath.includes('roth2') ? 'masculine' : 'feminine';
+      this.skinManager = new SkinMaterialManager(scene, result.structure, this.currentGender);
 
       // 8. Wardrobe system (clothing manager + texture layers + alpha masking + catalog)
       this.clothingManager = new OpenSimClothingManager(
@@ -271,8 +274,9 @@ export class AvatarLifecycle {
     this.camera?.focusOnModel(this.modelRoot);
 
     // Rebuild subsystems
+    this.currentGender = modelPath.includes('roth2') ? 'masculine' : 'feminine';
     this.shapeDriver = new ShapeParameterDriver(result.structure.skeleton);
-    this.skinManager = new SkinMaterialManager(scene, result.structure);
+    this.skinManager = new SkinMaterialManager(scene, result.structure, this.currentGender);
     this.clothingManager = new OpenSimClothingManager(scene, result.root, result.structure.skeleton);
     this.compositor = new TextureCompositor(scene, result.structure, this.skinManager);
     this.clothingManager.setCompositor(this.compositor);
