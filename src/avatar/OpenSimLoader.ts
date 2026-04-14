@@ -170,8 +170,12 @@ export class OpenSimLoader {
       'Ruth2v4EyeBall',
       'Ruth2v4Eyeball',      // case varies between L/R in the GLB
       'Ruth2v4Eyelashes',
-      // Roth2 equivalents (same pattern when we add male)
-      'Roth2',
+      // Roth2 equivalents (actual mesh names from roth2-simplified.glb)
+      'Roth2v2Body',
+      'Roth2v2Feet',
+      'Roth2v2Hands',
+      'RotheyeBall',         // RotheyeBallLeftMesh, RotheyeBallRightMesh
+      'headMesh',            // Roth2 head (not prefixed with Roth2 in GLB)
     ]);
 
     let hidden = 0;
