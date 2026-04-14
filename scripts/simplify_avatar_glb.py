@@ -32,7 +32,7 @@ KEEP_MESHES = {
     },
     "roth2": {
         "Roth2v2Body",
-        "headMesh",
+        "Roth2v2BentoHead",    # skinned head (NOT "headMesh" which is unskinned)
         "Roth2v2Hands",
         "Roth2v2Feet",
         "RotheyeBallLeftMesh",
