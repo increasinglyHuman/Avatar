@@ -17,6 +17,8 @@ import { ManifestSerializer } from '../avatar/ManifestSerializer.js';
 import { OutfitStore } from '../avatar/OutfitStore.js';
 import { IdleAnimationManager } from '../avatar/IdleAnimationManager.js';
 import { CVBounceDriver } from '../avatar/CVBounceDriver.js';
+import { BreathingDriver } from '../avatar/BreathingDriver.js';
+import { BlinkDriver } from '../avatar/BlinkDriver.js';
 import type { PostMessageBridge } from '../bridge/PostMessageBridge.js';
 import type { AbstractMesh, TransformNode } from '@babylonjs/core';
 import '@babylonjs/loaders/glTF';
@@ -47,6 +49,8 @@ export class AvatarLifecycle {
   private outfitStore: OutfitStore | null = null;
   private idleAnimManager: IdleAnimationManager | null = null;
   private cvBounce: CVBounceDriver | null = null;
+  private breathing: BreathingDriver | null = null;
+  private blink: BlinkDriver | null = null;
 
   private container: HTMLElement;
   private canvas: HTMLCanvasElement;
@@ -160,7 +164,14 @@ export class AvatarLifecycle {
         this.sidebar.connectCVBounce(this.cvBounce);
       }
 
-      // 13. Per-frame updates
+      // 13. Breathing & blinking (procedural, post-animation)
+      if (result.structure.skeleton) {
+        this.breathing = new BreathingDriver(scene, result.structure.skeleton);
+        this.blink = new BlinkDriver(scene, result.structure.skeleton);
+        this.sidebar.connectBreathingAndBlink(this.breathing, this.blink);
+      }
+
+      // 14. Per-frame updates
       scene.registerBeforeRender(() => {
         if (!this.sidebar || !this.avatarEngine) return;
         this.sidebar.setFPS(this.avatarEngine.getFPS());
@@ -322,6 +333,10 @@ export class AvatarLifecycle {
     this.idleAnimManager = null;
     this.cvBounce?.dispose();
     this.cvBounce = null;
+    this.breathing?.dispose();
+    this.breathing = null;
+    this.blink?.dispose();
+    this.blink = null;
     this.sidebar?.dispose();
 
     for (const mesh of this.modelMeshes) {

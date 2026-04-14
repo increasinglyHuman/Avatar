@@ -1,5 +1,7 @@
 import type { ShapeParameterDriver } from '../avatar/ShapeParameterDriver.js';
 import type { CVBounceDriver, BounceParams } from '../avatar/CVBounceDriver.js';
+import type { BreathingDriver } from '../avatar/BreathingDriver.js';
+import type { BlinkDriver } from '../avatar/BlinkDriver.js';
 import { ShapeSliderPanel } from './ShapeSliderPanel.js';
 
 const PHYSICS_STYLE_ID = 'bb-avatar-physics-styles';
@@ -128,6 +130,8 @@ export class BodyTab {
   private root: HTMLDivElement;
   private panel: ShapeSliderPanel | null = null;
   private cvBounce: CVBounceDriver | null = null;
+  private breathing: BreathingDriver | null = null;
+  private blink: BlinkDriver | null = null;
   private physicsSection: HTMLDivElement | null = null;
 
   constructor(container: HTMLElement) {
@@ -152,6 +156,13 @@ export class BodyTab {
     this.renderPhysics();
   }
 
+  /** Connect breathing and blink drivers — renders toggles in the physics section */
+  connectBreathingAndBlink(breathing: BreathingDriver, blink: BlinkDriver): void {
+    this.breathing = breathing;
+    this.blink = blink;
+    this.renderPhysics();
+  }
+
   private renderPhysics(): void {
     injectPhysicsStyles();
 
@@ -161,10 +172,7 @@ export class BodyTab {
       this.physicsSection = null;
     }
 
-    if (!this.cvBounce) return;
-    const cv = this.cvBounce;
-    const regionNames = cv.getRegionNames();
-    if (regionNames.length === 0) return;
+    if (!this.cvBounce && !this.breathing && !this.blink) return;
 
     const section = document.createElement('div');
     section.className = 'physics-section';
@@ -176,29 +184,36 @@ export class BodyTab {
     header.textContent = 'Physics';
     section.appendChild(header);
 
-    // Enable/disable toggle
-    const toggleRow = document.createElement('div');
-    toggleRow.className = 'physics-toggle-row';
-    const toggleLabel = document.createElement('span');
-    toggleLabel.className = 'physics-toggle-label';
-    toggleLabel.textContent = 'Bounce';
-    toggleRow.appendChild(toggleLabel);
+    // CV Bounce controls
+    if (this.cvBounce) {
+      const cv = this.cvBounce;
+      const regionNames = cv.getRegionNames();
 
-    const toggleBtn = document.createElement('button');
-    toggleBtn.className = 'physics-toggle' + (cv.isEnabled() ? ' on' : '');
-    toggleBtn.addEventListener('click', () => {
-      const nowOn = !cv.isEnabled();
-      cv.setEnabled(nowOn);
-      toggleBtn.classList.toggle('on', nowOn);
-    });
-    toggleRow.appendChild(toggleBtn);
-    section.appendChild(toggleRow);
+      // Enable/disable toggle
+      this.renderToggle(section, 'Bounce', cv.isEnabled(), (on) => {
+        cv.setEnabled(on);
+      });
 
-    // Per-region collapsible groups
-    for (const regionName of regionNames) {
-      const params = cv.getRegionParams(regionName);
-      if (!params) continue;
-      this.renderRegionGroup(section, regionName, params, cv);
+      // Per-region collapsible groups
+      for (const regionName of regionNames) {
+        const params = cv.getRegionParams(regionName);
+        if (!params) continue;
+        this.renderRegionGroup(section, regionName, params, cv);
+      }
+    }
+
+    // Breathing toggle
+    if (this.breathing) {
+      this.renderToggle(section, 'Breathing', this.breathing.isEnabled(), (on) => {
+        this.breathing?.setEnabled(on);
+      });
+    }
+
+    // Blinking toggle
+    if (this.blink) {
+      this.renderToggle(section, 'Blinking', this.blink.isEnabled(), (on) => {
+        this.blink?.setEnabled(on);
+      });
     }
 
     this.root.appendChild(section);
@@ -278,6 +293,31 @@ export class BodyTab {
       cv.setRegionParams(regionName, { [def.key]: val });
     });
 
+    container.appendChild(row);
+  }
+
+  private renderToggle(
+    container: HTMLElement,
+    label: string,
+    initialState: boolean,
+    onChange: (on: boolean) => void,
+  ): void {
+    const row = document.createElement('div');
+    row.className = 'physics-toggle-row';
+
+    const labelEl = document.createElement('span');
+    labelEl.className = 'physics-toggle-label';
+    labelEl.textContent = label;
+    row.appendChild(labelEl);
+
+    const btn = document.createElement('button');
+    btn.className = 'physics-toggle' + (initialState ? ' on' : '');
+    btn.addEventListener('click', () => {
+      const nowOn = !btn.classList.contains('on');
+      btn.classList.toggle('on', nowOn);
+      onChange(nowOn);
+    });
+    row.appendChild(btn);
     container.appendChild(row);
   }
 
