@@ -19,6 +19,7 @@ import { IdleAnimationManager } from '../avatar/IdleAnimationManager.js';
 import { CVBounceDriver } from '../avatar/CVBounceDriver.js';
 import { BreathingDriver } from '../avatar/BreathingDriver.js';
 import { BlinkDriver } from '../avatar/BlinkDriver.js';
+import { SpringBoneSystem } from '../avatar/SpringBoneSystem.js';
 import type { PostMessageBridge } from '../bridge/PostMessageBridge.js';
 import type { AbstractMesh, TransformNode } from '@babylonjs/core';
 import '@babylonjs/loaders/glTF';
@@ -51,6 +52,7 @@ export class AvatarLifecycle {
   private cvBounce: CVBounceDriver | null = null;
   private breathing: BreathingDriver | null = null;
   private blink: BlinkDriver | null = null;
+  private springBones: SpringBoneSystem | null = null;
 
   private container: HTMLElement;
   private canvas: HTMLCanvasElement;
@@ -179,7 +181,12 @@ export class AvatarLifecycle {
         this.sidebar.connectBreathingAndBlink(this.breathing, this.blink);
       }
 
-      // 14. Per-frame updates
+      // 14. Spring bone system (hair/cloth physics — no-op on bare Ruth2/Roth2)
+      if (this.modelRoot) {
+        this.springBones = new SpringBoneSystem(this.modelRoot, scene);
+      }
+
+      // 15. Per-frame updates
       scene.registerBeforeRender(() => {
         if (!this.sidebar || !this.avatarEngine) return;
         this.sidebar.setFPS(this.avatarEngine.getFPS());
@@ -224,6 +231,8 @@ export class AvatarLifecycle {
     console.log(`[Avatar] Swapping model to: ${modelPath}`);
 
     // Dispose model-specific subsystems (reverse init order)
+    this.springBones?.dispose();
+    this.springBones = null;
     this.blink?.dispose();
     this.blink = null;
     this.breathing?.dispose();
@@ -302,6 +311,11 @@ export class AvatarLifecycle {
       this.sidebar.connectBreathingAndBlink(this.breathing, this.blink);
     }
 
+    // Spring bones (hair/cloth physics)
+    if (this.modelRoot) {
+      this.springBones = new SpringBoneSystem(this.modelRoot, scene);
+    }
+
     // Update stored config
     if (this.currentConfig) this.currentConfig.modelPath = modelPath;
 
@@ -318,6 +332,10 @@ export class AvatarLifecycle {
 
   getState(): AvatarState {
     return this.state;
+  }
+
+  getSpringBoneSystem(): SpringBoneSystem | null {
+    return this.springBones;
   }
 
   getOpenSimStructure(): OpenSimStructure | null {
@@ -445,6 +463,8 @@ export class AvatarLifecycle {
     this.breathing = null;
     this.blink?.dispose();
     this.blink = null;
+    this.springBones?.dispose();
+    this.springBones = null;
     this.sidebar?.dispose();
 
     for (const mesh of this.modelMeshes) {
