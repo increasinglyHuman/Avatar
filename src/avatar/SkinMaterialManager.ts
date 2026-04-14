@@ -22,6 +22,8 @@ export class SkinMaterialManager {
   private nailMainMats: PBRMaterial[] = [];
   private nailTipMats: PBRMaterial[] = [];
   private nailSkinMats: PBRMaterial[] = [];
+  /** Roth2 head prims that get skin tint but NOT photo textures (scalp, mouth) */
+  private skinTintOnlyMats: PBRMaterial[] = [];
 
   /** Current state tracking */
   private currentSkinTint: Color3 = Color3.White();
@@ -50,8 +52,11 @@ export class SkinMaterialManager {
 
     const ROTH2_UPPER = new Set(['Neck', 'Vest', 'Sleeves', 'Gloves']);
     const ROTH2_LOWER = new Set(['Trousers', 'Feet']);
-    const ROTH2_HEAD = new Set(['Ears', 'Mouth', 'Lips', 'HighNeck', 'SkiMask']);
-    const ROTH2_EYE = new Set(['Eyeball', 'Eyes']);
+    const ROTH2_HEAD = new Set(['Ears', 'Eyes', 'HighNeck', 'Hoodie', 'Lips']);
+    const ROTH2_EYE = new Set(['Eyeball']);
+    // Roth2 head prims that should be skin-tinted but NOT receive photo textures:
+    // Hairbase (scalp under hair), SkiMask (balaclava zone), Mouth (inner mouth)
+    const ROTH2_SKIN_TINT_ONLY = new Set(['Hairbase', 'SkiMask', 'Mouth']);
 
     for (const [name, mat] of this.materials) {
       // Ruth2 names
@@ -67,13 +72,20 @@ export class SkinMaterialManager {
       else if (ROTH2_LOWER.has(name)) { this.lowerBodyMats.push(mat); }
       else if (ROTH2_HEAD.has(name)) { this.headMats.push(mat); }
       else if (ROTH2_EYE.has(name)) { this.eyeMats.push(mat); }
+      else if (ROTH2_SKIN_TINT_ONLY.has(name)) { this.skinTintOnlyMats.push(mat); }
     }
 
     console.log(
       `[SkinMaterial] Classified: ${this.upperBodyMats.length} upper, ` +
       `${this.lowerBodyMats.length} lower, ${this.headMats.length} head, ` +
-      `${this.eyeMats.length} eye, ${this.nailMainMats.length + this.nailTipMats.length} nail`,
+      `${this.eyeMats.length} eye, ${this.nailMainMats.length + this.nailTipMats.length} nail, ` +
+      `${this.skinTintOnlyMats.length} tint-only`,
     );
+
+    // Clear textures on tint-only mats so they render as flat skin color
+    for (const mat of this.skinTintOnlyMats) {
+      mat.albedoTexture = null;
+    }
 
     // Diagnostic: compare PBR properties across all skin materials
     const allSkin = [...this.upperBodyMats, ...this.lowerBodyMats, ...this.headMats];
@@ -156,7 +168,7 @@ export class SkinMaterialManager {
   setSkinTint(hex: string): void {
     const color = Color3.FromHexString(hex);
     this.currentSkinTint = color;
-    const allSkin = [...this.upperBodyMats, ...this.lowerBodyMats, ...this.headMats];
+    const allSkin = [...this.upperBodyMats, ...this.lowerBodyMats, ...this.headMats, ...this.skinTintOnlyMats];
     for (const mat of allSkin) {
       mat.albedoColor = color;
     }
@@ -268,5 +280,6 @@ export class SkinMaterialManager {
     this.nailMainMats = [];
     this.nailTipMats = [];
     this.nailSkinMats = [];
+    this.skinTintOnlyMats = [];
   }
 }
