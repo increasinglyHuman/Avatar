@@ -57,6 +57,7 @@ export class AvatarLifecycle {
   private bridge: PostMessageBridge | null = null;
   private debugKeyHandler: ((e: KeyboardEvent) => void) | null = null;
   private wireframeOn = false;
+  private currentConfig: AvatarConfig | null = null;
 
   constructor(container: HTMLElement, canvas: HTMLCanvasElement) {
     this.container = container;
@@ -77,6 +78,7 @@ export class AvatarLifecycle {
     }
 
     this.state = 'loading';
+    this.currentConfig = config;
 
     try {
       // 1. Engine
@@ -147,6 +149,12 @@ export class AvatarLifecycle {
         this.manifestSerializer, this.outfitStore, this.avatarEngine.getEngine(),
       );
 
+      // 10b. Gender swap callback
+      this.sidebar.onModelSwap(async (isFeminine: boolean) => {
+        const path = isFeminine ? 'assets/ruth2-feminine.glb' : 'assets/roth2-simplified.glb';
+        await this.swapModel(path);
+      });
+
       // 11. Idle animations (retargeted in Animator, exported as animation-only GLB)
       if (result.structure.skeleton) {
         this.idleAnimManager = new IdleAnimationManager(scene, result.structure.skeleton);
@@ -202,6 +210,106 @@ export class AvatarLifecycle {
       this.state = 'disposed';
       throw error;
     }
+  }
+
+  /**
+   * Hot-swap the avatar model (Ruth2 ↔ Roth2).
+   * Disposes model-specific subsystems and reloads with a new GLB path,
+   * keeping engine, lighting, background, camera, and sidebar alive.
+   */
+  async swapModel(modelPath: string): Promise<void> {
+    if (this.state !== 'running' || !this.avatarEngine || !this.sidebar) return;
+    const scene = this.avatarEngine.getScene();
+
+    console.log(`[Avatar] Swapping model to: ${modelPath}`);
+
+    // Dispose model-specific subsystems (reverse init order)
+    this.blink?.dispose();
+    this.blink = null;
+    this.breathing?.dispose();
+    this.breathing = null;
+    this.cvBounce?.dispose();
+    this.cvBounce = null;
+    this.idleAnimManager?.dispose();
+    this.idleAnimManager = null;
+    this.manifestSerializer = null;
+    this.outfitStore = null;
+    this.clothingManager?.dispose();
+    this.clothingManager = null;
+    this.compositor?.dispose();
+    this.compositor = null;
+    this.alphaMaskManager?.dispose();
+    this.alphaMaskManager = null;
+    this.catalog = null;
+    this.skinManager?.dispose();
+    this.skinManager = null;
+    this.shapeDriver = null;
+    this.opensimStructure = null;
+
+    for (const mesh of this.modelMeshes) mesh.dispose();
+    this.modelMeshes = [];
+    this.modelRoot?.dispose();
+    this.modelRoot = null;
+
+    // Load new model
+    const loader = new OpenSimLoader();
+    const result = await loader.load(modelPath, scene);
+    this.modelRoot = result.root;
+    this.modelMeshes = result.meshes;
+    this.opensimStructure = result.structure;
+
+    // Rebuild camera focus
+    this.camera?.focusOnModel(this.modelRoot);
+
+    // Rebuild subsystems
+    this.shapeDriver = new ShapeParameterDriver(result.structure.skeleton);
+    this.skinManager = new SkinMaterialManager(scene, result.structure);
+    this.clothingManager = new OpenSimClothingManager(scene, result.root, result.structure.skeleton);
+    this.compositor = new TextureCompositor(scene, result.structure, this.skinManager);
+    this.clothingManager.setCompositor(this.compositor);
+    this.alphaMaskManager = new AlphaMaskManager(result.structure);
+    this.catalog = new OpenSimCatalog();
+    await this.catalog.load();
+    this.manifestSerializer = new ManifestSerializer(
+      this.shapeDriver, this.skinManager, this.clothingManager, this.catalog,
+    );
+    this.outfitStore = new OutfitStore();
+
+    // Reconnect sidebar
+    this.sidebar.connectShapeDriver(this.shapeDriver);
+    this.sidebar.connectSkinManager(this.skinManager);
+    this.sidebar.connectWardrobe(this.catalog, this.clothingManager, this.alphaMaskManager);
+    this.sidebar.connectOutfits(
+      this.manifestSerializer, this.outfitStore, this.avatarEngine.getEngine(),
+    );
+
+    // Animations
+    if (result.structure.skeleton) {
+      this.idleAnimManager = new IdleAnimationManager(scene, result.structure.skeleton);
+      await this.idleAnimManager.loadAnimation('assets/Happy_Idle_1__anim_2026-04-13.glb');
+      await this.idleAnimManager.loadAnimation('assets/Ruth_Thoughtful_Head_Shake_anim_2026-04-13.glb');
+      if (this.idleAnimManager.getCount() > 0) this.idleAnimManager.playDefault(true);
+    }
+
+    // Physics + procedural
+    if (result.structure.skeleton && this.modelRoot) {
+      this.cvBounce = new CVBounceDriver(scene, result.structure.skeleton, this.modelRoot);
+      this.sidebar.connectCVBounce(this.cvBounce);
+    }
+    if (result.structure.skeleton) {
+      this.breathing = new BreathingDriver(scene, result.structure.skeleton);
+      this.blink = new BlinkDriver(scene, result.structure.skeleton);
+      this.sidebar.connectBreathingAndBlink(this.breathing, this.blink);
+    }
+
+    // Update stored config
+    if (this.currentConfig) this.currentConfig.modelPath = modelPath;
+
+    console.log(`[Avatar] Model swap complete: ${modelPath}`);
+  }
+
+  getCurrentModelPath(): string {
+    return this.currentConfig?.modelPath ?? '';
   }
 
   getSidebar(): Sidebar | null {

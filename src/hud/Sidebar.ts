@@ -36,6 +36,31 @@ const SIDEBAR_STYLES = `
     letter-spacing: 0.5px;
     text-transform: uppercase;
     color: rgba(255, 255, 255, 0.5);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .gender-toggle {
+    padding: 4px 10px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    color: rgba(255, 255, 255, 0.5);
+    cursor: pointer;
+    font-size: 11px;
+    font-family: inherit;
+    font-weight: 500;
+    text-transform: none;
+    letter-spacing: 0;
+    transition: background 0.15s, color 0.15s;
+  }
+  .gender-toggle:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.8);
+  }
+  .gender-toggle.loading {
+    opacity: 0.5;
+    pointer-events: none;
   }
 
   /* Tab bar */
@@ -212,6 +237,9 @@ export class Sidebar {
   private bodyTab: BodyTab;
   private skinTab: SkinTab;
   private wardrobeTab: WardrobeTab;
+  private genderToggle: HTMLButtonElement | null = null;
+  private onGenderSwap: ((isFeminine: boolean) => Promise<void>) | null = null;
+  private isFeminine = true;
 
   constructor(container: HTMLElement) {
     this.styleEl = document.createElement('style');
@@ -224,7 +252,17 @@ export class Sidebar {
     // Header
     const header = document.createElement('div');
     header.className = 'sidebar-header';
-    header.textContent = 'Avatar';
+
+    const headerLabel = document.createElement('span');
+    headerLabel.textContent = 'Avatar';
+    header.appendChild(headerLabel);
+
+    this.genderToggle = document.createElement('button');
+    this.genderToggle.className = 'gender-toggle';
+    this.genderToggle.textContent = 'Switch to Male';
+    this.genderToggle.addEventListener('click', () => this.handleGenderSwap());
+    header.appendChild(this.genderToggle);
+
     this.root.appendChild(header);
 
     // Tab bar
@@ -290,6 +328,29 @@ export class Sidebar {
     alphaMgr: AlphaMaskManager,
   ): void {
     this.wardrobeTab.connect(catalog, clothingMgr, alphaMgr);
+  }
+
+  /** Register callback for gender swap (called by AvatarLifecycle) */
+  onModelSwap(callback: (isFeminine: boolean) => Promise<void>): void {
+    this.onGenderSwap = callback;
+  }
+
+  private async handleGenderSwap(): Promise<void> {
+    if (!this.genderToggle || !this.onGenderSwap) return;
+
+    this.genderToggle.classList.add('loading');
+    this.genderToggle.textContent = 'Loading...';
+
+    try {
+      this.isFeminine = !this.isFeminine;
+      await this.onGenderSwap(this.isFeminine);
+      this.genderToggle.textContent = this.isFeminine ? 'Switch to Male' : 'Switch to Female';
+    } catch (err) {
+      console.error('[Sidebar] Gender swap failed:', err);
+      this.isFeminine = !this.isFeminine; // revert
+    } finally {
+      this.genderToggle.classList.remove('loading');
+    }
   }
 
   setFPS(fps: number): void {
