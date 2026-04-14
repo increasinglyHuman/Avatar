@@ -40,27 +40,41 @@ const SIDEBAR_STYLES = `
     justify-content: space-between;
     align-items: center;
   }
-  .gender-toggle {
-    padding: 4px 10px;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+  .gender-icons {
+    display: flex;
+    gap: 4px;
+  }
+  .gender-icon-btn {
+    width: 30px;
+    height: 30px;
+    background: none;
+    border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 4px;
-    color: rgba(255, 255, 255, 0.5);
     cursor: pointer;
-    font-size: 11px;
-    font-family: inherit;
-    font-weight: 500;
-    text-transform: none;
-    letter-spacing: 0;
-    transition: background 0.15s, color 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+    opacity: 0.35;
   }
-  .gender-toggle:hover {
-    background: rgba(255, 255, 255, 0.12);
-    color: rgba(255, 255, 255, 0.8);
+  .gender-icon-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    opacity: 0.6;
   }
-  .gender-toggle.loading {
-    opacity: 0.5;
+  .gender-icon-btn.active {
+    opacity: 1;
+    border-color: rgba(255, 255, 255, 0.25);
+    background: rgba(255, 255, 255, 0.06);
+  }
+  .gender-icon-btn.loading {
+    opacity: 0.3;
     pointer-events: none;
+  }
+  .gender-icon-btn svg {
+    width: 16px;
+    height: 16px;
+    fill: white;
   }
 
   /* Tab bar */
@@ -237,7 +251,8 @@ export class Sidebar {
   private bodyTab: BodyTab;
   private skinTab: SkinTab;
   private wardrobeTab: WardrobeTab;
-  private genderToggle: HTMLButtonElement | null = null;
+  private femaleBtn: HTMLButtonElement | null = null;
+  private maleBtn: HTMLButtonElement | null = null;
   private onGenderSwap: ((isFeminine: boolean) => Promise<void>) | null = null;
   private isFeminine = true;
 
@@ -257,12 +272,31 @@ export class Sidebar {
     headerLabel.textContent = 'Avatar';
     header.appendChild(headerLabel);
 
-    this.genderToggle = document.createElement('button');
-    this.genderToggle.className = 'gender-toggle';
-    this.genderToggle.textContent = 'Switch to Male';
-    this.genderToggle.addEventListener('click', () => this.handleGenderSwap());
-    header.appendChild(this.genderToggle);
+    // Gender icon pair
+    const genderIcons = document.createElement('div');
+    genderIcons.className = 'gender-icons';
 
+    // Female icon (simplified silhouette)
+    this.femaleBtn = document.createElement('button');
+    this.femaleBtn.className = 'gender-icon-btn active';
+    this.femaleBtn.title = 'Female';
+    this.femaleBtn.innerHTML = `<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" fill="none" stroke="white" stroke-width="2"/><path d="M12 12c-4 0-7 2.5-7 5.5V20h14v-2.5c0-3-3-5.5-7-5.5z" fill="white"/></svg>`;
+    this.femaleBtn.addEventListener('click', () => {
+      if (!this.isFeminine) this.handleGenderSwap();
+    });
+    genderIcons.appendChild(this.femaleBtn);
+
+    // Male icon (broader shoulders silhouette)
+    this.maleBtn = document.createElement('button');
+    this.maleBtn.className = 'gender-icon-btn';
+    this.maleBtn.title = 'Male';
+    this.maleBtn.innerHTML = `<svg viewBox="0 0 24 24"><circle cx="12" cy="7" r="4" fill="none" stroke="white" stroke-width="2"/><path d="M12 11c-5 0-8 2.5-8 5.5V20h16v-3.5c0-3-3-5.5-8-5.5z" fill="white"/></svg>`;
+    this.maleBtn.addEventListener('click', () => {
+      if (this.isFeminine) this.handleGenderSwap();
+    });
+    genderIcons.appendChild(this.maleBtn);
+
+    header.appendChild(genderIcons);
     this.root.appendChild(header);
 
     // Tab bar
@@ -336,21 +370,29 @@ export class Sidebar {
   }
 
   private async handleGenderSwap(): Promise<void> {
-    if (!this.genderToggle || !this.onGenderSwap) return;
+    if (!this.femaleBtn || !this.maleBtn || !this.onGenderSwap) return;
 
-    this.genderToggle.classList.add('loading');
-    this.genderToggle.textContent = 'Loading...';
+    this.femaleBtn.classList.add('loading');
+    this.maleBtn.classList.add('loading');
 
     try {
       this.isFeminine = !this.isFeminine;
+      this.updateGenderIcons();
+      // Set gender BEFORE swap so connectSkinManager renders with correct filter
+      this.skinTab.setGender(this.isFeminine ? 'feminine' : 'masculine');
       await this.onGenderSwap(this.isFeminine);
-      this.genderToggle.textContent = this.isFeminine ? 'Switch to Male' : 'Switch to Female';
     } catch (err) {
       console.error('[Sidebar] Gender swap failed:', err);
       this.isFeminine = !this.isFeminine; // revert
     } finally {
-      this.genderToggle.classList.remove('loading');
+      this.femaleBtn.classList.remove('loading');
+      this.maleBtn.classList.remove('loading');
     }
+  }
+
+  private updateGenderIcons(): void {
+    this.femaleBtn?.classList.toggle('active', this.isFeminine);
+    this.maleBtn?.classList.toggle('active', !this.isFeminine);
   }
 
   setFPS(fps: number): void {

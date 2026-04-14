@@ -6,12 +6,9 @@ import type { OpenSimStructure } from '../types/opensim.js';
  * Manages Ruth2/Roth2 skin materials: texture swaps, color tinting,
  * eye/nail/lip color adjustments.
  *
- * Ruth2 material layout (SL standard UV channels):
- *   Upper body: mat_neck, mat_tank, mat_sleeves, mat_hands
- *   Lower body: mat_shorts, mat_stockings, mat_feet
- *   Head: mat_head
- *   Eyes: mat_eyeball
- *   Nails: mat_nail_main, mat_nail_tip, mat_nail_skinmatch (+ .001 variants)
+ * Material layout (auto-detects Ruth2 or Roth2 naming):
+ *   Ruth2: mat_neck/mat_tank/mat_sleeves/mat_hands, mat_shorts/mat_stockings/mat_feet, mat_head, mat_eyeball
+ *   Roth2: Neck/Vest/Sleeves/Gloves, Trousers/Feet, Ears/Mouth/Lips/HighNeck/SkiMask, Eyeball
  */
 export class SkinMaterialManager {
   private scene: Scene;
@@ -43,23 +40,33 @@ export class SkinMaterialManager {
       this.collectMaterials(part.mesh);
     }
 
-    // Classify by name
+    // Classify by name — try Ruth2 names first, then Roth2 names
+    // Ruth2: mat_neck, mat_tank, mat_sleeves, mat_hands, mat_shorts, mat_stockings, mat_feet, mat_head, mat_eyeball
+    // Roth2: Neck, Vest, Sleeves, Gloves, Trousers, Feet, Ears, Mouth, Lips, HighNeck, SkiMask, Eyeball
+    const RUTH2_UPPER = new Set(['mat_neck', 'mat_tank', 'mat_sleeves', 'mat_hands']);
+    const RUTH2_LOWER = new Set(['mat_shorts', 'mat_stockings', 'mat_feet']);
+    const RUTH2_HEAD = new Set(['mat_head']);
+    const RUTH2_EYE = new Set(['mat_eyeball']);
+
+    const ROTH2_UPPER = new Set(['Neck', 'Vest', 'Sleeves', 'Gloves']);
+    const ROTH2_LOWER = new Set(['Trousers', 'Feet']);
+    const ROTH2_HEAD = new Set(['Ears', 'Mouth', 'Lips', 'HighNeck', 'SkiMask']);
+    const ROTH2_EYE = new Set(['Eyeball', 'Eyes']);
+
     for (const [name, mat] of this.materials) {
-      if (['mat_neck', 'mat_tank', 'mat_sleeves', 'mat_hands'].includes(name)) {
-        this.upperBodyMats.push(mat);
-      } else if (['mat_shorts', 'mat_stockings', 'mat_feet'].includes(name)) {
-        this.lowerBodyMats.push(mat);
-      } else if (name === 'mat_head') {
-        this.headMats.push(mat);
-      } else if (name === 'mat_eyeball') {
-        this.eyeMats.push(mat);
-      } else if (name.startsWith('mat_nail_main')) {
-        this.nailMainMats.push(mat);
-      } else if (name.startsWith('mat_nail_tip')) {
-        this.nailTipMats.push(mat);
-      } else if (name.startsWith('mat_nail_skinmatch')) {
-        this.nailSkinMats.push(mat);
-      }
+      // Ruth2 names
+      if (RUTH2_UPPER.has(name)) { this.upperBodyMats.push(mat); }
+      else if (RUTH2_LOWER.has(name)) { this.lowerBodyMats.push(mat); }
+      else if (RUTH2_HEAD.has(name)) { this.headMats.push(mat); }
+      else if (RUTH2_EYE.has(name)) { this.eyeMats.push(mat); }
+      else if (name.startsWith('mat_nail_main')) { this.nailMainMats.push(mat); }
+      else if (name.startsWith('mat_nail_tip')) { this.nailTipMats.push(mat); }
+      else if (name.startsWith('mat_nail_skinmatch')) { this.nailSkinMats.push(mat); }
+      // Roth2 names
+      else if (ROTH2_UPPER.has(name)) { this.upperBodyMats.push(mat); }
+      else if (ROTH2_LOWER.has(name)) { this.lowerBodyMats.push(mat); }
+      else if (ROTH2_HEAD.has(name)) { this.headMats.push(mat); }
+      else if (ROTH2_EYE.has(name)) { this.eyeMats.push(mat); }
     }
 
     console.log(

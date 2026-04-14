@@ -65,141 +65,65 @@ function injectStyles(): void {
   document.head.appendChild(style);
 }
 
+import type { AvatarGender } from '../types/index.js';
+
 /** Available upper body skin textures */
 interface SkinTextureOption {
   id: string;
   label: string;
   path: string;
   thumbnail: string; // same as path for now
+  /** Which gender this skin is intended for ('both' shows on either) */
+  gender: AvatarGender | 'both';
 }
 
 const UPPER_BODY_SKINS: SkinTextureOption[] = [
-  {
-    id: 'upper-pleiades',
-    label: 'Pleiades',
-    path: 'assets/upper-drafts/pleiades_upper.png',
-    thumbnail: 'assets/upper-drafts/pleiades_upper.png',
-  },
-  {
-    id: 'upper-light-freckle',
-    label: 'Light',
-    path: 'assets/upper-drafts/Meshy_AI_7ff094c01d8cd7f34cb63c3c053fa1451abb297629cca8bebb088645596e5b53.png',
-    thumbnail: 'assets/upper-drafts/Meshy_AI_7ff094c01d8cd7f34cb63c3c053fa1451abb297629cca8bebb088645596e5b53.png',
-  },
-  {
-    id: 'upper-medium',
-    label: 'Medium',
-    path: 'assets/upper-drafts/Meshy_AI_0910b9a941bd520a6b49cf518e422664115f36bb27ababdcdbc0cfbfb60969cf.png',
-    thumbnail: 'assets/upper-drafts/Meshy_AI_0910b9a941bd520a6b49cf518e422664115f36bb27ababdcdbc0cfbfb60969cf.png',
-  },
-  {
-    id: 'upper-warm-freckle',
-    label: 'Warm',
-    path: 'assets/upper-drafts/Meshy_AI_a05dca24f93cc23cad4fe4274c5a52a655fb5e35dcda8f2dc0d73007b379b4a7.png',
-    thumbnail: 'assets/upper-drafts/Meshy_AI_a05dca24f93cc23cad4fe4274c5a52a655fb5e35dcda8f2dc0d73007b379b4a7.png',
-  },
-  {
-    id: 'upper-freckle-heavy',
-    label: 'Freckled',
-    path: 'assets/upper-drafts/Meshy_AI_d0e172066f8559e71745d7f0aa0c7f8dffc25380d9c111b2a4c7a9397b05db28.png',
-    thumbnail: 'assets/upper-drafts/Meshy_AI_d0e172066f8559e71745d7f0aa0c7f8dffc25380d9c111b2a4c7a9397b05db28.png',
-  },
-  {
-    id: 'upper-cash',
-    label: 'Cash',
-    path: 'assets/upper-drafts/cash_upper.png',
-    thumbnail: 'assets/upper-drafts/cash_upper.png',
-  },
+  { id: 'upper-pleiades', label: 'Pleiades', gender: 'feminine',
+    path: 'assets/upper-drafts/pleiades_upper.png', thumbnail: 'assets/upper-drafts/pleiades_upper.png' },
+  { id: 'upper-light-freckle', label: 'Light', gender: 'both',
+    path: 'assets/upper-drafts/Meshy_AI_7ff094c01d8cd7f34cb63c3c053fa1451abb297629cca8bebb088645596e5b53.png', thumbnail: 'assets/upper-drafts/Meshy_AI_7ff094c01d8cd7f34cb63c3c053fa1451abb297629cca8bebb088645596e5b53.png' },
+  { id: 'upper-medium', label: 'Medium', gender: 'both',
+    path: 'assets/upper-drafts/Meshy_AI_0910b9a941bd520a6b49cf518e422664115f36bb27ababdcdbc0cfbfb60969cf.png', thumbnail: 'assets/upper-drafts/Meshy_AI_0910b9a941bd520a6b49cf518e422664115f36bb27ababdcdbc0cfbfb60969cf.png' },
+  { id: 'upper-warm-freckle', label: 'Warm', gender: 'both',
+    path: 'assets/upper-drafts/Meshy_AI_a05dca24f93cc23cad4fe4274c5a52a655fb5e35dcda8f2dc0d73007b379b4a7.png', thumbnail: 'assets/upper-drafts/Meshy_AI_a05dca24f93cc23cad4fe4274c5a52a655fb5e35dcda8f2dc0d73007b379b4a7.png' },
+  { id: 'upper-freckle-heavy', label: 'Freckled', gender: 'both',
+    path: 'assets/upper-drafts/Meshy_AI_d0e172066f8559e71745d7f0aa0c7f8dffc25380d9c111b2a4c7a9397b05db28.png', thumbnail: 'assets/upper-drafts/Meshy_AI_d0e172066f8559e71745d7f0aa0c7f8dffc25380d9c111b2a4c7a9397b05db28.png' },
+  { id: 'upper-cash', label: 'Cash', gender: 'masculine',
+    path: 'assets/upper-drafts/cash_upper.png', thumbnail: 'assets/upper-drafts/cash_upper.png' },
 ];
 
 const LOWER_BODY_SKINS: SkinTextureOption[] = [
-  {
-    id: 'lower-pleiades',
-    label: 'Pleiades',
-    path: 'assets/lower-drafts/pleiades_lower.png',
-    thumbnail: 'assets/lower-drafts/pleiades_lower.png',
-  },
-  {
-    id: 'lower-a',
-    label: 'A',
-    path: 'assets/lower-drafts/Meshy_AI_25d9530f74e58599f6769becb04f080d20857ba3fb9c9200a1e832cd6bf1e5c8.png',
-    thumbnail: 'assets/lower-drafts/Meshy_AI_25d9530f74e58599f6769becb04f080d20857ba3fb9c9200a1e832cd6bf1e5c8.png',
-  },
-  {
-    id: 'lower-b',
-    label: 'B',
-    path: 'assets/lower-drafts/Meshy_AI_2832e9e9519bb32075f68d622fa83e6858d53700ae1b7890069fa9363727045f.png',
-    thumbnail: 'assets/lower-drafts/Meshy_AI_2832e9e9519bb32075f68d622fa83e6858d53700ae1b7890069fa9363727045f.png',
-  },
-  {
-    id: 'lower-c',
-    label: 'C',
-    path: 'assets/lower-drafts/Meshy_AI_2dc2ba19eddd8070992c96a487764098beaf84a65e561587e029707754cf742a.png',
-    thumbnail: 'assets/lower-drafts/Meshy_AI_2dc2ba19eddd8070992c96a487764098beaf84a65e561587e029707754cf742a.png',
-  },
-  {
-    id: 'lower-d',
-    label: 'D',
-    path: 'assets/lower-drafts/Meshy_AI_31b2e2c7d00de32abad8132abf24fd956da8837eb92891ecc60fb90f28d7ec95.png',
-    thumbnail: 'assets/lower-drafts/Meshy_AI_31b2e2c7d00de32abad8132abf24fd956da8837eb92891ecc60fb90f28d7ec95.png',
-  },
-  {
-    id: 'lower-cash',
-    label: 'Cash',
-    path: 'assets/lower-drafts/cash_lower.png',
-    thumbnail: 'assets/lower-drafts/cash_lower.png',
-  },
+  { id: 'lower-pleiades', label: 'Pleiades', gender: 'feminine',
+    path: 'assets/lower-drafts/pleiades_lower.png', thumbnail: 'assets/lower-drafts/pleiades_lower.png' },
+  { id: 'lower-a', label: 'A', gender: 'both',
+    path: 'assets/lower-drafts/Meshy_AI_25d9530f74e58599f6769becb04f080d20857ba3fb9c9200a1e832cd6bf1e5c8.png', thumbnail: 'assets/lower-drafts/Meshy_AI_25d9530f74e58599f6769becb04f080d20857ba3fb9c9200a1e832cd6bf1e5c8.png' },
+  { id: 'lower-b', label: 'B', gender: 'both',
+    path: 'assets/lower-drafts/Meshy_AI_2832e9e9519bb32075f68d622fa83e6858d53700ae1b7890069fa9363727045f.png', thumbnail: 'assets/lower-drafts/Meshy_AI_2832e9e9519bb32075f68d622fa83e6858d53700ae1b7890069fa9363727045f.png' },
+  { id: 'lower-c', label: 'C', gender: 'both',
+    path: 'assets/lower-drafts/Meshy_AI_2dc2ba19eddd8070992c96a487764098beaf84a65e561587e029707754cf742a.png', thumbnail: 'assets/lower-drafts/Meshy_AI_2dc2ba19eddd8070992c96a487764098beaf84a65e561587e029707754cf742a.png' },
+  { id: 'lower-d', label: 'D', gender: 'both',
+    path: 'assets/lower-drafts/Meshy_AI_31b2e2c7d00de32abad8132abf24fd956da8837eb92891ecc60fb90f28d7ec95.png', thumbnail: 'assets/lower-drafts/Meshy_AI_31b2e2c7d00de32abad8132abf24fd956da8837eb92891ecc60fb90f28d7ec95.png' },
+  { id: 'lower-cash', label: 'Cash', gender: 'masculine',
+    path: 'assets/lower-drafts/cash_lower.png', thumbnail: 'assets/lower-drafts/cash_lower.png' },
 ];
 
 const HEAD_SKINS: SkinTextureOption[] = [
-  {
-    id: 'head-pleiades',
-    label: 'Pleiades',
-    path: 'assets/heads-draft/pleiades_face04.png',
-    thumbnail: 'assets/heads-draft/pleiades_face04.png',
-  },
-  {
-    id: 'head-pleiades-01',
-    label: 'Freckles',
-    path: 'assets/heads-draft/pleiades_face01.png',
-    thumbnail: 'assets/heads-draft/pleiades_face01.png',
-  },
-  {
-    id: 'head-pleiades-clean',
-    label: 'Clean',
-    path: 'assets/heads-draft/pleiades_face.png',
-    thumbnail: 'assets/heads-draft/pleiades_face.png',
-  },
-  {
-    id: 'head-a',
-    label: 'A',
-    path: 'assets/heads-draft/Meshy_AI_28042f146d33a8c30f645237dd22915285521711b6a51dba93a150de64ae0b9e.png',
-    thumbnail: 'assets/heads-draft/Meshy_AI_28042f146d33a8c30f645237dd22915285521711b6a51dba93a150de64ae0b9e.png',
-  },
-  {
-    id: 'head-b',
-    label: 'B',
-    path: 'assets/heads-draft/Meshy_AI_383919de2b9b4d8835ae4a5acaf975d6a677fca4872a1636251acbce762425e6.png',
-    thumbnail: 'assets/heads-draft/Meshy_AI_383919de2b9b4d8835ae4a5acaf975d6a677fca4872a1636251acbce762425e6.png',
-  },
-  {
-    id: 'head-c',
-    label: 'C',
-    path: 'assets/heads-draft/Meshy_AI_48cbaaf5d7107602ce272e1b2aaa259bf9a58f8c42cc949a828c0139b04528c0.png',
-    thumbnail: 'assets/heads-draft/Meshy_AI_48cbaaf5d7107602ce272e1b2aaa259bf9a58f8c42cc949a828c0139b04528c0.png',
-  },
-  {
-    id: 'head-d',
-    label: 'D',
-    path: 'assets/heads-draft/Meshy_AI_54894f791dbb5f38af48c7bdf3480b9679c71dd3d61a78aacad18c995d7ba171.png',
-    thumbnail: 'assets/heads-draft/Meshy_AI_54894f791dbb5f38af48c7bdf3480b9679c71dd3d61a78aacad18c995d7ba171.png',
-  },
-  {
-    id: 'head-cash',
-    label: 'Cash',
-    path: 'assets/heads-draft/cash_face.png',
-    thumbnail: 'assets/heads-draft/cash_face.png',
-  },
+  { id: 'head-pleiades', label: 'Pleiades', gender: 'feminine',
+    path: 'assets/heads-draft/pleiades_face04.png', thumbnail: 'assets/heads-draft/pleiades_face04.png' },
+  { id: 'head-pleiades-01', label: 'Freckles', gender: 'feminine',
+    path: 'assets/heads-draft/pleiades_face01.png', thumbnail: 'assets/heads-draft/pleiades_face01.png' },
+  { id: 'head-pleiades-clean', label: 'Clean', gender: 'feminine',
+    path: 'assets/heads-draft/pleiades_face.png', thumbnail: 'assets/heads-draft/pleiades_face.png' },
+  { id: 'head-a', label: 'A', gender: 'both',
+    path: 'assets/heads-draft/Meshy_AI_28042f146d33a8c30f645237dd22915285521711b6a51dba93a150de64ae0b9e.png', thumbnail: 'assets/heads-draft/Meshy_AI_28042f146d33a8c30f645237dd22915285521711b6a51dba93a150de64ae0b9e.png' },
+  { id: 'head-b', label: 'B', gender: 'both',
+    path: 'assets/heads-draft/Meshy_AI_383919de2b9b4d8835ae4a5acaf975d6a677fca4872a1636251acbce762425e6.png', thumbnail: 'assets/heads-draft/Meshy_AI_383919de2b9b4d8835ae4a5acaf975d6a677fca4872a1636251acbce762425e6.png' },
+  { id: 'head-c', label: 'C', gender: 'both',
+    path: 'assets/heads-draft/Meshy_AI_48cbaaf5d7107602ce272e1b2aaa259bf9a58f8c42cc949a828c0139b04528c0.png', thumbnail: 'assets/heads-draft/Meshy_AI_48cbaaf5d7107602ce272e1b2aaa259bf9a58f8c42cc949a828c0139b04528c0.png' },
+  { id: 'head-d', label: 'D', gender: 'both',
+    path: 'assets/heads-draft/Meshy_AI_54894f791dbb5f38af48c7bdf3480b9679c71dd3d61a78aacad18c995d7ba171.png', thumbnail: 'assets/heads-draft/Meshy_AI_54894f791dbb5f38af48c7bdf3480b9679c71dd3d61a78aacad18c995d7ba171.png' },
+  { id: 'head-cash', label: 'Cash', gender: 'masculine',
+    path: 'assets/heads-draft/cash_face.png', thumbnail: 'assets/heads-draft/cash_face.png' },
 ];
 
 /**
@@ -210,6 +134,7 @@ export class SkinTab {
   private manager: SkinMaterialManager | null = null;
   private widgets: Map<string, ColorSlotWidget> = new Map();
   private activeSelections: Map<string, string> = new Map(); // channel → skinId
+  private currentGender: AvatarGender = 'feminine';
 
   constructor(container: HTMLElement) {
     injectStyles();
@@ -221,6 +146,12 @@ export class SkinTab {
   connectManager(manager: SkinMaterialManager): void {
     this.manager = manager;
     this.render();
+  }
+
+  /** Update gender filter — re-renders texture grids to show matching skins */
+  setGender(gender: AvatarGender): void {
+    this.currentGender = gender;
+    if (this.manager) this.render();
   }
 
   show(): void {
@@ -331,7 +262,11 @@ export class SkinTab {
     const grid = document.createElement('div');
     grid.className = 'skin-texture-grid';
 
-    for (const skin of skins) {
+    const filtered = skins.filter(
+      (s) => s.gender === 'both' || s.gender === this.currentGender,
+    );
+
+    for (const skin of filtered) {
       const card = document.createElement('div');
       card.className = 'skin-texture-card';
       card.dataset.skinId = skin.id;
