@@ -33,11 +33,11 @@ export interface BounceParams {
   maxEffect: number;
 }
 
-// Tuned for visibility with idle animation impulse.
+// Tuned for visible jiggle tail — low drag so spring rings 4-6 cycles before settling.
 // bounce = impulse gain, drag = damping, spring = return stiffness, maxEffect = displacement clamp
-const DEFAULT_BREAST: BounceParams = { bounce: 3.0, drag: 1.2, spring: 2.0, maxEffect: 0.03 };
-const DEFAULT_BELLY: BounceParams = { bounce: 1.6, drag: 1.5, spring: 3.0, maxEffect: 0.016 };
-const DEFAULT_BUTT: BounceParams = { bounce: 2.0, drag: 1.3, spring: 2.5, maxEffect: 0.02 };
+const DEFAULT_BREAST: BounceParams = { bounce: 3.0, drag: 0.4, spring: 2.0, maxEffect: 0.03 };
+const DEFAULT_BELLY: BounceParams = { bounce: 1.6, drag: 0.5, spring: 3.0, maxEffect: 0.016 };
+const DEFAULT_BUTT: BounceParams = { bounce: 2.0, drag: 0.45, spring: 2.5, maxEffect: 0.02 };
 
 export class CVBounceDriver {
   private scene: Scene;

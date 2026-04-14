@@ -5,6 +5,7 @@ import { SkinTab } from './SkinTab.js';
 import { OutfitsTab } from './OutfitsTab.js';
 import { WardrobeTab } from './WardrobeTab.js';
 import type { ShapeParameterDriver } from '../avatar/ShapeParameterDriver.js';
+import type { CVBounceDriver } from '../avatar/CVBounceDriver.js';
 import type { SkinMaterialManager } from '../avatar/SkinMaterialManager.js';
 import type { OpenSimClothingManager } from '../avatar/OpenSimClothingManager.js';
 import type { OpenSimCatalog } from '../avatar/OpenSimCatalog.js';
@@ -260,6 +261,10 @@ export class Sidebar {
 
   connectShapeDriver(driver: ShapeParameterDriver): void {
     this.bodyTab.connectDriver(driver);
+  }
+
+  connectCVBounce(bounce: CVBounceDriver): void {
+    this.bodyTab.connectCVBounce(bounce);
   }
 
   connectSkinManager(manager: SkinMaterialManager): void {

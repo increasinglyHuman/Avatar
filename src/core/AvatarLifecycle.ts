@@ -157,6 +157,7 @@ export class AvatarLifecycle {
       // 12. CV bounce physics (SL-compatible breast/belly/butt spring-damper)
       if (result.structure.skeleton && this.modelRoot) {
         this.cvBounce = new CVBounceDriver(scene, result.structure.skeleton, this.modelRoot);
+        this.sidebar.connectCVBounce(this.cvBounce);
       }
 
       // 13. Per-frame updates

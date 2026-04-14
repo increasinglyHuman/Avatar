@@ -85,7 +85,7 @@ export class SkinMaterialManager {
     console.log('[SkinMaterial] === END PBR COMPARISON ===');
 
     // Apply default skin set (Pleiades)
-    this.setUpperBodySkin('assets/upper-drafts/pleiades_upper.png');
+    this.setUpperBodySkin('assets/upper-drafts/pleiades_upperBody.png');
     this.setLowerBodySkin('assets/lower-drafts/pleiades_lower.png');
     this.setHeadSkin('assets/heads-draft/pleiades_face04.png');
 
