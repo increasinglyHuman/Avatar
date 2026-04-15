@@ -150,6 +150,11 @@ export class BodyTab {
     if (this.cvBounce) this.renderPhysics();
   }
 
+  /** Update gender state for adaptive labels and param visibility */
+  setGender(isMasculine: boolean): void {
+    this.panel?.setGender(isMasculine);
+  }
+
   /** Connect the CV bounce driver to add physics sliders */
   connectCVBounce(bounce: CVBounceDriver): void {
     this.cvBounce = bounce;

@@ -179,6 +179,7 @@ export class ShapeSliderPanel {
   private driver: ShapeParameterDriver;
   private sliderInputs: Map<string, HTMLInputElement> = new Map();
   private sliderValues: Map<string, HTMLSpanElement> = new Map();
+  private isMasculine: boolean = false;
 
   constructor(container: HTMLElement, driver: ShapeParameterDriver) {
     injectStyles();
@@ -187,6 +188,14 @@ export class ShapeSliderPanel {
     this.root.className = 'shape-panel';
     container.appendChild(this.root);
     this.render();
+  }
+
+  /** Update gender state and re-render (hides/renames params as needed) */
+  setGender(isMasculine: boolean): void {
+    if (this.isMasculine === isMasculine) return;
+    this.isMasculine = isMasculine;
+    this.render();
+    this.syncAllSliders();
   }
 
   private render(): void {
@@ -253,7 +262,11 @@ export class ShapeSliderPanel {
     label: string,
     startCollapsed: boolean,
   ): void {
-    const params = SHAPE_PARAMETERS.filter((p) => p.category === category);
+    const params = SHAPE_PARAMETERS.filter((p) => {
+      if (p.category !== category) return false;
+      if (this.isMasculine && p.hideOnMasculine) return false;
+      return true;
+    });
     if (params.length === 0) return;
 
     const group = document.createElement('div');
@@ -283,7 +296,10 @@ export class ShapeSliderPanel {
     body.className = 'shape-group-body';
 
     for (const param of params) {
-      this.renderSlider(body, param.id, param.label, param.defaultValue);
+      const displayLabel = (this.isMasculine && param.masculineLabel)
+        ? param.masculineLabel
+        : param.label;
+      this.renderSlider(body, param.id, displayLabel, param.defaultValue);
     }
 
     group.appendChild(body);

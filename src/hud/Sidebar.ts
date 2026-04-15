@@ -378,9 +378,11 @@ export class Sidebar {
     try {
       this.isFeminine = !this.isFeminine;
       this.updateGenderIcons();
-      // Set gender BEFORE swap so connectSkinManager renders with correct filter
+      // Set skin gender BEFORE swap so connectSkinManager renders with correct filter
       this.skinTab.setGender(this.isFeminine ? 'feminine' : 'masculine');
       await this.onGenderSwap(this.isFeminine);
+      // Set body gender AFTER swap — the swap rebuilds the ShapeSliderPanel
+      this.bodyTab.setGender(!this.isFeminine);
     } catch (err) {
       console.error('[Sidebar] Gender swap failed:', err);
       this.isFeminine = !this.isFeminine; // revert

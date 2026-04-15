@@ -48,6 +48,12 @@ export interface ShapeParameterDef {
   /** Default slider position (0–100). 50 = neutral for most params. */
   defaultValue: number;
   drivers: BoneDriver[];
+  /** If true, shown in Simple Mode (ADR-017). All params shown in Detail Mode. */
+  essential?: boolean;
+  /** Alternative label when masculine avatar is active. If null/undefined, use label. */
+  masculineLabel?: string | null;
+  /** If true, hide this parameter entirely on masculine avatars. */
+  hideOnMasculine?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -118,7 +124,22 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
     category: 'body',
     defaultValue: 50,
     drivers: [
-      { bone: 'mPelvis', property: 'position', axis: 'y', range: [-0.05, 0.05] },
+      // SL param 33: scales bones along their length axis proportionally.
+      // SL uses Z-up, our skeleton uses Y for bone length (matches leg_length/torso_length).
+      // Spine chain — Y is the length axis
+      { bone: 'mNeck',   property: 'scale', axis: 'y', range: [-0.046, 0.04] },
+      { bone: 'mChest',  property: 'scale', axis: 'y', range: [-0.115, 0.1] },
+      { bone: 'mTorso',  property: 'scale', axis: 'y', range: [-0.115, 0.1] },
+      // Legs (largest contribution — 0.1 factor)
+      { bone: 'mHipLeft',   property: 'scale', axis: 'y', range: [-0.23, 0.2] },
+      { bone: 'mHipRight',  property: 'scale', axis: 'y', range: [-0.23, 0.2] },
+      { bone: 'mKneeLeft',  property: 'scale', axis: 'y', range: [-0.23, 0.2] },
+      { bone: 'mKneeRight', property: 'scale', axis: 'y', range: [-0.23, 0.2] },
+      // Arms — Y is also the length axis for arm bones
+      { bone: 'mShoulderLeft',  property: 'scale', axis: 'y', range: [-0.1, 0.08] },
+      { bone: 'mShoulderRight', property: 'scale', axis: 'y', range: [-0.1, 0.08] },
+      { bone: 'mElbowLeft',  property: 'scale', axis: 'y', range: [-0.08, 0.06] },
+      { bone: 'mElbowRight', property: 'scale', axis: 'y', range: [-0.08, 0.06] },
     ],
   },
   {
@@ -153,8 +174,10 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
     category: 'body',
     defaultValue: 50,
     drivers: [
-      { bone: 'mCollarLeft', property: 'position', axis: 'x', range: [-0.02, 0.02] },
-      { bone: 'mCollarRight', property: 'position', axis: 'x', range: [0.02, -0.02] },
+      // Widened + added chest scale for more visible shoulder breadth change
+      { bone: 'mCollarLeft', property: 'position', axis: 'x', range: [-0.04, 0.04] },
+      { bone: 'mCollarRight', property: 'position', axis: 'x', range: [0.04, -0.04] },
+      { bone: 'mChest', property: 'scale', axis: 'x', range: [-0.06, 0.06] },
     ],
   },
   {
@@ -163,9 +186,11 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
     category: 'body',
     defaultValue: 50,
     drivers: [
-      { bone: 'PELVIS', property: 'scale', axis: 'x', range: [-0.12, 0.12] },
-      { bone: 'mHipLeft', property: 'position', axis: 'x', range: [0.01, -0.01] },
-      { bone: 'mHipRight', property: 'position', axis: 'x', range: [-0.01, 0.01] },
+      // SL param 37: pelvis X-scale (width) + hip offsets
+      // Widened from ±0.12 to match SL's dramatic range
+      { bone: 'PELVIS', property: 'scale', axis: 'x', range: [-0.25, 0.25] },
+      { bone: 'mHipLeft', property: 'position', axis: 'x', range: [0.012, -0.012] },
+      { bone: 'mHipRight', property: 'position', axis: 'x', range: [-0.012, 0.012] },
     ],
   },
   {
@@ -206,20 +231,23 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
   {
     id: 'breast_size',
     label: 'Breast Size',
+    masculineLabel: 'Pec Size',
     category: 'torso',
     defaultValue: 40,
     drivers: [
-      { bone: 'LEFT_PEC', property: 'scale', axis: 'x', range: [-0.1, 0.2] },
-      { bone: 'LEFT_PEC', property: 'scale', axis: 'y', range: [-0.1, 0.2] },
-      { bone: 'LEFT_PEC', property: 'scale', axis: 'z', range: [-0.1, 0.3] },
-      { bone: 'RIGHT_PEC', property: 'scale', axis: 'x', range: [-0.1, 0.2] },
-      { bone: 'RIGHT_PEC', property: 'scale', axis: 'y', range: [-0.1, 0.2] },
-      { bone: 'RIGHT_PEC', property: 'scale', axis: 'z', range: [-0.1, 0.3] },
+      // 50% increase over previous — matching SL's dramatic breast morph range
+      { bone: 'LEFT_PEC', property: 'scale', axis: 'x', range: [-0.3, 0.9] },
+      { bone: 'LEFT_PEC', property: 'scale', axis: 'y', range: [-0.3, 0.9] },
+      { bone: 'LEFT_PEC', property: 'scale', axis: 'z', range: [-0.3, 1.2] },
+      { bone: 'RIGHT_PEC', property: 'scale', axis: 'x', range: [-0.3, 0.9] },
+      { bone: 'RIGHT_PEC', property: 'scale', axis: 'y', range: [-0.3, 0.9] },
+      { bone: 'RIGHT_PEC', property: 'scale', axis: 'z', range: [-0.3, 1.2] },
     ],
   },
   {
     id: 'breast_gravity',
     label: 'Breast Gravity',
+    hideOnMasculine: true,
     category: 'torso',
     defaultValue: 50,
     drivers: [
@@ -230,6 +258,7 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
   {
     id: 'breast_cleavage',
     label: 'Breast Cleavage',
+    hideOnMasculine: true,
     category: 'torso',
     defaultValue: 50,
     drivers: [
@@ -243,8 +272,10 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
     category: 'torso',
     defaultValue: 25,
     drivers: [
-      { bone: 'BELLY', property: 'scale', axis: 'x', range: [-0.08, 0.2] },
-      { bone: 'BELLY', property: 'scale', axis: 'z', range: [-0.08, 0.25] },
+      // Widened for more dramatic belly range
+      { bone: 'BELLY', property: 'scale', axis: 'x', range: [-0.1, 0.35] },
+      { bone: 'BELLY', property: 'scale', axis: 'y', range: [-0.05, 0.2] },
+      { bone: 'BELLY', property: 'scale', axis: 'z', range: [-0.1, 0.4] },
     ],
   },
   {
@@ -403,9 +434,15 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
     category: 'details',
     defaultValue: 40,
     drivers: [
-      { bone: 'BUTT', property: 'scale', axis: 'x', range: [-0.06, 0.15] },
-      { bone: 'BUTT', property: 'scale', axis: 'y', range: [-0.04, 0.1] },
-      { bone: 'BUTT', property: 'scale', axis: 'z', range: [-0.06, 0.2] },
+      // BUTT CV bone has 0 weights in Ruth2 but 339 in Roth2 — include it for both.
+      // PELVIS covers the entire pelvic/glute region (2732/2041 verts).
+      // UPPER_LEG extends into the glute area (2034/1861 verts each).
+      // Driver silently skips bones with no vertex weights.
+      { bone: 'BUTT', property: 'scale', axis: 'x', range: [-0.1, 0.3] },
+      { bone: 'BUTT', property: 'scale', axis: 'z', range: [-0.1, 0.35] },
+      { bone: 'PELVIS', property: 'scale', axis: 'z', range: [-0.08, 0.25] },
+      ...symmetricCV('UPPER_LEG', 'scale', 'z', [-0.05, 0.15]),
+      ...symmetricCV('UPPER_LEG', 'scale', 'x', [-0.03, 0.08]),
     ],
   },
   {

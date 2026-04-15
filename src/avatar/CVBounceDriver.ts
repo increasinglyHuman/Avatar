@@ -24,6 +24,8 @@ interface BounceRegion {
   maxEffect: number;
   /** Primary axis of motion for this region (local space) */
   axis: Vector3;
+  /** Previous frame's displacement — used to delta-apply without resetting position */
+  prevDisplacement?: Vector3;
 }
 
 export interface BounceParams {
@@ -198,12 +200,20 @@ export class CVBounceDriver {
       region.velocity.copyFrom(region.axis).scaleInPlace(newV);
       region.displacement.copyFrom(region.axis).scaleInPlace(clampedD);
 
-      // Apply to CV nodes
+      // Apply displacement to CV nodes.
+      // IMPORTANT: Only modify position, don't reset it. The ShapeParameterDriver
+      // sets the base position (rest + shape deltas). We add bounce on top.
+      // We store the PREVIOUS frame's displacement so we can subtract it before
+      // adding the new one, avoiding drift.
       for (let i = 0; i < region.cvNodes.length; i++) {
         const node = region.cvNodes[i];
-        const rest = region.restPositions[i];
-        node.position.copyFrom(rest).addInPlace(region.displacement);
+        // Remove previous displacement, add new displacement
+        const prevDisp = region.prevDisplacement ?? Vector3.Zero();
+        node.position.subtractInPlace(prevDisp);
+        node.position.addInPlace(region.displacement);
       }
+      // Store for next frame subtraction
+      region.prevDisplacement = region.displacement.clone();
     }
 
     // Force skeleton to recompute transform matrices this frame.
