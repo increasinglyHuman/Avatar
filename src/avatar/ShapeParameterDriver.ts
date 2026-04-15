@@ -26,6 +26,13 @@ export class ShapeParameterDriver {
   /** Rest-pose positions captured from TransformNodes at init */
   private restPositions: Map<string, Vector3> = new Map();
 
+  /**
+   * Symmetry splits: when a param is unlinked, its L/R sides get independent values.
+   * Key = original param id, Value = { left, right } slider values (0-100).
+   * When a param is in this map, its entry in `values` is ignored during applyAll().
+   */
+  private splits: Map<string, { left: number; right: number }> = new Map();
+
   /** Callback fired when any parameter changes */
   private onChange: (() => void) | null = null;
 
@@ -112,6 +119,59 @@ export class ShapeParameterDriver {
     for (const param of SHAPE_PARAMETERS) {
       this.values.set(param.id, param.defaultValue);
     }
+    this.splits.clear();
+    this.applyAll();
+    this.onChange?.();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Symmetry split API
+  // ---------------------------------------------------------------------------
+
+  /** Check if a parameter has L/R paired drivers (and thus can be split) */
+  isSymmetric(paramId: string): boolean {
+    const param = SHAPE_PARAMETERS.find((p) => p.id === paramId);
+    if (!param) return false;
+    const hasLeft = param.drivers.some((d) => isLeftBone(d.bone));
+    const hasRight = param.drivers.some((d) => isRightBone(d.bone));
+    return hasLeft && hasRight;
+  }
+
+  /** Split a symmetric param into independent L/R values. */
+  splitParam(paramId: string): void {
+    if (this.splits.has(paramId)) return;
+    const currentVal = this.values.get(paramId) ?? 50;
+    this.splits.set(paramId, { left: currentVal, right: currentVal });
+    this.applyAll();
+    this.onChange?.();
+  }
+
+  /** Re-link a split param. Uses the average of L/R as the new unified value. */
+  unsplitParam(paramId: string): void {
+    const split = this.splits.get(paramId);
+    if (!split) return;
+    const avg = Math.round((split.left + split.right) / 2);
+    this.values.set(paramId, avg);
+    this.splits.delete(paramId);
+    this.applyAll();
+    this.onChange?.();
+  }
+
+  /** Check if a param is currently split */
+  isSplit(paramId: string): boolean {
+    return this.splits.has(paramId);
+  }
+
+  /** Get the L/R values for a split param */
+  getSplitValues(paramId: string): { left: number; right: number } | null {
+    return this.splits.get(paramId) ?? null;
+  }
+
+  /** Set one side of a split param */
+  setSplitValue(paramId: string, side: 'left' | 'right', value: number): void {
+    const split = this.splits.get(paramId);
+    if (!split) return;
+    split[side] = Math.max(0, Math.min(100, value));
     this.applyAll();
     this.onChange?.();
   }
@@ -128,10 +188,27 @@ export class ShapeParameterDriver {
     const positionDeltas = new Map<string, Vector3>();
 
     for (const param of SHAPE_PARAMETERS) {
-      const sliderValue = this.values.get(param.id) ?? param.defaultValue;
-      const t = sliderValue / 100;
+      const split = this.splits.get(param.id);
 
       for (const driver of param.drivers) {
+        // Determine slider value: split params use per-side values
+        let sliderValue: number;
+        if (split) {
+          const boneIsLeft = isLeftBone(driver.bone);
+          const boneIsRight = isRightBone(driver.bone);
+          if (boneIsLeft) {
+            sliderValue = split.left;
+          } else if (boneIsRight) {
+            sliderValue = split.right;
+          } else {
+            // Center bone in a split param — use average
+            sliderValue = (split.left + split.right) / 2;
+          }
+        } else {
+          sliderValue = this.values.get(param.id) ?? param.defaultValue;
+        }
+
+        const t = sliderValue / 100;
         const delta = lerp(driver.range[0], driver.range[1], t);
         if (Math.abs(delta) < 0.0001) continue;
 
@@ -205,6 +282,16 @@ function addToAxis(vec: Vector3, axis: 'x' | 'y' | 'z', value: number): void {
   if (axis === 'x') vec.x += value;
   else if (axis === 'y') vec.y += value;
   else vec.z += value;
+}
+
+/** Detect if a bone name belongs to the left side */
+function isLeftBone(name: string): boolean {
+  return name.endsWith('Left') || name.startsWith('L_');
+}
+
+/** Detect if a bone name belongs to the right side */
+function isRightBone(name: string): boolean {
+  return name.endsWith('Right') || name.startsWith('R_');
 }
 
 function getCategorySection(param: ShapeParameterDef): string {

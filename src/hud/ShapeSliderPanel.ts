@@ -440,6 +440,41 @@ function injectStyles(): void {
   font-size: 11px;
   font-family: inherit;
 }
+
+/* Symmetry toggle */
+.shape-sym-btn {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 18px;
+  text-align: center;
+  flex-shrink: 0;
+  border-radius: 2px;
+  transition: color 0.15s, background 0.15s;
+}
+.shape-sym-btn:hover {
+  color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.06);
+}
+.shape-sym-btn.unlinked {
+  color: rgba(255, 180, 100, 0.6);
+}
+.shape-split-container {
+  padding-left: 12px;
+}
+.shape-split-label {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.3);
+  min-width: 78px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 `;
   document.head.appendChild(style);
 }
@@ -752,6 +787,15 @@ export class ShapeSliderPanel {
     label: string,
     defaultValue: number,
   ): void {
+    const isSym = this.driver.isSymmetric(paramId);
+    const isSplit = this.driver.isSplit(paramId);
+
+    // If split AND in detail mode, render two sliders instead of one
+    if (isSplit && this.mode === 'detail') {
+      this.renderSplitSliders(container, paramId, label, defaultValue);
+      return;
+    }
+
     const row = document.createElement('div');
     row.className = 'shape-slider-row';
     row.dataset.paramId = paramId;
@@ -779,12 +823,27 @@ export class ShapeSliderPanel {
     valueEl.textContent = String(currentVal);
     row.appendChild(valueEl);
 
+    // Symmetry toggle (Detail mode only, symmetric params only)
+    if (isSym && this.mode === 'detail') {
+      const symBtn = document.createElement('button');
+      symBtn.className = 'shape-sym-btn';
+      symBtn.textContent = '\u{1F517}'; // chain link emoji
+      symBtn.title = 'Unlink L/R for asymmetric editing';
+      symBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.driver.splitParam(paramId);
+        // Re-render the group containing this param
+        this.render();
+        this.syncAllSliders();
+      });
+      row.appendChild(symBtn);
+    }
+
     // Live update on input (while dragging)
     input.addEventListener('input', () => {
       const val = parseInt(input.value, 10);
       valueEl.textContent = String(val);
       this.driver.setValue(paramId, val);
-      // Update modified indicator
       labelEl.classList.toggle('modified', val !== defaultValue);
       this.updateModifiedCount(paramId);
     });
@@ -800,6 +859,106 @@ export class ShapeSliderPanel {
 
     this.sliderInputs.set(paramId, input);
     this.sliderValues.set(paramId, valueEl);
+
+    container.appendChild(row);
+  }
+
+  /** Render two independent L/R sliders for a split (unlinked) param */
+  private renderSplitSliders(
+    container: HTMLElement,
+    paramId: string,
+    label: string,
+    defaultValue: number,
+  ): void {
+    const splitContainer = document.createElement('div');
+    splitContainer.className = 'shape-split-container';
+    splitContainer.dataset.paramId = paramId;
+
+    const splitVals = this.driver.getSplitValues(paramId);
+    if (!splitVals) return;
+
+    // Re-link button row
+    const headerRow = document.createElement('div');
+    headerRow.className = 'shape-slider-row';
+
+    const labelEl = document.createElement('span');
+    labelEl.className = 'shape-slider-label modified';
+    labelEl.textContent = label;
+    labelEl.title = `${label} (unlinked L/R)`;
+    this.sliderLabels.set(paramId, labelEl);
+    headerRow.appendChild(labelEl);
+
+    // Spacer
+    const spacer = document.createElement('span');
+    spacer.style.flex = '1';
+    headerRow.appendChild(spacer);
+
+    const relinkBtn = document.createElement('button');
+    relinkBtn.className = 'shape-sym-btn unlinked';
+    relinkBtn.textContent = '\u{26D3}'; // broken chain
+    relinkBtn.title = 'Re-link L/R (uses average)';
+    relinkBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.driver.unsplitParam(paramId);
+      this.render();
+      this.syncAllSliders();
+    });
+    headerRow.appendChild(relinkBtn);
+
+    splitContainer.appendChild(headerRow);
+
+    // Left slider
+    this.renderSidedSlider(splitContainer, paramId, 'left', `${label} L`, splitVals.left, defaultValue);
+    // Right slider
+    this.renderSidedSlider(splitContainer, paramId, 'right', `${label} R`, splitVals.right, defaultValue);
+
+    container.appendChild(splitContainer);
+  }
+
+  private renderSidedSlider(
+    container: HTMLElement,
+    paramId: string,
+    side: 'left' | 'right',
+    label: string,
+    currentVal: number,
+    defaultValue: number,
+  ): void {
+    const row = document.createElement('div');
+    row.className = 'shape-slider-row';
+
+    const labelEl = document.createElement('span');
+    labelEl.className = 'shape-split-label' + (currentVal !== defaultValue ? ' modified' : '');
+    labelEl.textContent = label;
+    row.appendChild(labelEl);
+
+    const input = document.createElement('input');
+    input.type = 'range';
+    input.className = 'shape-slider-input';
+    input.min = '0';
+    input.max = '100';
+    input.value = String(currentVal);
+    row.appendChild(input);
+
+    const valueEl = document.createElement('span');
+    valueEl.className = 'shape-slider-value';
+    valueEl.textContent = String(currentVal);
+    row.appendChild(valueEl);
+
+    const splitKey = `${paramId}_${side}`;
+    this.sliderInputs.set(splitKey, input);
+    this.sliderValues.set(splitKey, valueEl);
+
+    input.addEventListener('input', () => {
+      const val = parseInt(input.value, 10);
+      valueEl.textContent = String(val);
+      this.driver.setSplitValue(paramId, side, val);
+    });
+
+    input.addEventListener('dblclick', () => {
+      input.value = String(defaultValue);
+      valueEl.textContent = String(defaultValue);
+      this.driver.setSplitValue(paramId, side, defaultValue);
+    });
 
     container.appendChild(row);
   }
