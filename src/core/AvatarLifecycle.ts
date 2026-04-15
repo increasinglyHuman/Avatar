@@ -154,7 +154,10 @@ export class AvatarLifecycle {
         this.manifestSerializer, this.outfitStore, this.avatarEngine.getEngine(),
       );
 
-      // 10b. Gender swap callback
+      // 10b. Camera + animation connections for auto-focus
+      this.sidebar.connectCamera(this.camera);
+
+      // 10c. Gender swap callback
       this.sidebar.onModelSwap(async (isFeminine: boolean) => {
         const path = isFeminine ? 'assets/ruth2-feminine.glb' : 'assets/roth2-simplified.glb';
         await this.swapModel(path);
@@ -167,6 +170,7 @@ export class AvatarLifecycle {
         await this.idleAnimManager.loadAnimation('assets/Ruth_Thoughtful_Head_Shake_anim_2026-04-13.glb');
         if (this.idleAnimManager.getCount() > 0) {
           this.idleAnimManager.playDefault(true);
+          this.sidebar.connectIdleAnimations(this.idleAnimManager);
           console.log(`[Avatar] Idle animations: ${this.idleAnimManager.getAnimationNames().join(', ')}`);
         }
       }
@@ -301,7 +305,10 @@ export class AvatarLifecycle {
       this.idleAnimManager = new IdleAnimationManager(scene, result.structure.skeleton);
       await this.idleAnimManager.loadAnimation('assets/Happy_Idle_1__anim_2026-04-13.glb');
       await this.idleAnimManager.loadAnimation('assets/Ruth_Thoughtful_Head_Shake_anim_2026-04-13.glb');
-      if (this.idleAnimManager.getCount() > 0) this.idleAnimManager.playDefault(true);
+      if (this.idleAnimManager.getCount() > 0) {
+        this.idleAnimManager.playDefault(true);
+        this.sidebar.connectIdleAnimations(this.idleAnimManager);
+      }
     }
 
     // Physics + procedural

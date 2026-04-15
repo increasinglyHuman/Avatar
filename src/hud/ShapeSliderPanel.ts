@@ -7,6 +7,12 @@ import {
 import type { ShapeCategory, SectionId, ShapePreset } from '../avatar/ShapeParameterDefinitions.js';
 
 const STYLE_ID = 'bb-avatar-shape-styles';
+const MODE_KEY = 'bb-shape-mode';
+
+type ShapeMode = 'simple' | 'detail';
+
+/** Callback when a category group is expanded. SectionId + category for camera targeting. */
+export type CategoryExpandCallback = (section: SectionId, category: ShapeCategory) => void;
 
 function injectStyles(): void {
   if (document.getElementById(STYLE_ID)) return;
@@ -14,21 +20,105 @@ function injectStyles(): void {
   style.id = STYLE_ID;
   style.textContent = `
 .shape-panel {
-  padding-top: 8px;
+  padding-top: 4px;
 }
 
-/* Section headers (Body / Face) */
+/* Mode toggle row */
+.shape-mode-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 4px 0 8px;
+}
+.shape-mode-toggle {
+  display: flex;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+.shape-mode-btn {
+  padding: 4px 12px;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.shape-mode-btn:hover {
+  color: rgba(255, 255, 255, 0.6);
+}
+.shape-mode-btn.active {
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* Search bar */
+.shape-search-row {
+  padding: 0 0 8px;
+}
+.shape-search-input {
+  width: 100%;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 11px;
+  font-family: inherit;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+}
+.shape-search-input:focus {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+.shape-search-input::placeholder {
+  color: rgba(255, 255, 255, 0.25);
+}
+
+/* Collapsible section (Body / Face) */
+.shape-section {
+  margin-bottom: 2px;
+}
 .shape-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0 6px;
+  cursor: pointer;
+  user-select: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+.shape-section:first-of-type .shape-section-header {
+  border-top: none;
+  padding-top: 4px;
+}
+.shape-section-header:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+.shape-section-title {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 1px;
   color: rgba(255, 255, 255, 0.3);
-  padding: 12px 0 6px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  font-weight: 600;
 }
-.shape-section-header:first-child {
-  border-top: none;
-  padding-top: 4px;
+.shape-section-chevron {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.2);
+  transition: transform 0.2s;
+}
+.shape-section.collapsed .shape-section-chevron {
+  transform: rotate(-90deg);
+}
+.shape-section-body {
+  overflow: hidden;
+}
+.shape-section.collapsed .shape-section-body {
+  display: none;
 }
 
 /* Presets row */
@@ -80,6 +170,11 @@ function injectStyles(): void {
   font-weight: 500;
   color: rgba(255, 255, 255, 0.6);
 }
+.shape-group-modified {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.25);
+  margin-left: 4px;
+}
 .shape-group-chevron {
   font-size: 10px;
   color: rgba(255, 255, 255, 0.3);
@@ -96,6 +191,28 @@ function injectStyles(): void {
   display: none;
 }
 
+/* Per-category reset */
+.shape-group-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 4px 0 2px;
+}
+.shape-cat-reset-btn {
+  padding: 2px 8px;
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+  color: rgba(255, 255, 255, 0.25);
+  cursor: pointer;
+  font-size: 10px;
+  font-family: inherit;
+  transition: background 0.15s, color 0.15s;
+}
+.shape-cat-reset-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.5);
+}
+
 /* Individual slider */
 .shape-slider-row {
   display: flex;
@@ -110,6 +227,14 @@ function injectStyles(): void {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  transition: color 0.15s;
+}
+.shape-slider-label.modified {
+  color: rgba(255, 255, 255, 0.75);
+}
+.shape-slider-label.modified::before {
+  content: '\\2022 ';
+  color: rgba(255, 255, 255, 0.4);
 }
 .shape-slider-input {
   flex: 1;
@@ -146,7 +271,7 @@ function injectStyles(): void {
   font-variant-numeric: tabular-nums;
 }
 
-/* Reset button */
+/* Reset all button */
 .shape-reset-row {
   padding: 12px 0 8px;
   text-align: center;
@@ -171,23 +296,36 @@ function injectStyles(): void {
 }
 
 /**
- * Shape slider panel with collapsible category groups and presets.
- * Renders ~55 sliders organized into Body and Face sections.
+ * Shape slider panel with progressive disclosure (Simple/Detail modes),
+ * collapsible sections, search, per-category reset, and modified indicators.
  */
 export class ShapeSliderPanel {
   private root: HTMLDivElement;
   private driver: ShapeParameterDriver;
   private sliderInputs: Map<string, HTMLInputElement> = new Map();
   private sliderValues: Map<string, HTMLSpanElement> = new Map();
+  private sliderLabels: Map<string, HTMLSpanElement> = new Map();
+  private groupLabels: Map<ShapeCategory, HTMLSpanElement> = new Map();
+  private groupModifiedEls: Map<ShapeCategory, HTMLSpanElement> = new Map();
   private isMasculine: boolean = false;
+  private mode: ShapeMode;
+  private searchTerm: string = '';
+  private onCategoryExpand: CategoryExpandCallback | null = null;
+  private searchDebounceTimer: number | null = null;
 
   constructor(container: HTMLElement, driver: ShapeParameterDriver) {
     injectStyles();
     this.driver = driver;
+    this.mode = (localStorage.getItem(MODE_KEY) as ShapeMode) || 'simple';
     this.root = document.createElement('div');
     this.root.className = 'shape-panel';
     container.appendChild(this.root);
     this.render();
+  }
+
+  /** Register callback for when a category group is expanded */
+  onExpand(cb: CategoryExpandCallback): void {
+    this.onCategoryExpand = cb;
   }
 
   /** Update gender state and re-render (hides/renames params as needed) */
@@ -202,27 +340,22 @@ export class ShapeSliderPanel {
     this.root.innerHTML = '';
     this.sliderInputs.clear();
     this.sliderValues.clear();
+    this.sliderLabels.clear();
+    this.groupLabels.clear();
+    this.groupModifiedEls.clear();
+
+    // Mode toggle
+    this.renderModeToggle();
+
+    // Search (Detail mode only)
+    if (this.mode === 'detail') {
+      this.renderSearch();
+    }
 
     const sections: SectionId[] = ['body', 'face'];
 
     for (const section of sections) {
-      // Section header
-      const sectionHeader = document.createElement('div');
-      sectionHeader.className = 'shape-section-header';
-      sectionHeader.textContent = section === 'body' ? 'Body' : 'Face';
-      this.root.appendChild(sectionHeader);
-
-      // Presets for this section
-      const sectionPresets = SHAPE_PRESETS.filter((p) => p.section === section);
-      if (sectionPresets.length > 0) {
-        this.renderPresets(sectionPresets);
-      }
-
-      // Category groups for this section
-      const groups = CATEGORY_GROUPS.filter((g) => g.section === section);
-      for (const group of groups) {
-        this.renderGroup(group.id, group.label, section === 'face');
-      }
+      this.renderSection(section);
     }
 
     // Reset all button
@@ -234,12 +367,117 @@ export class ShapeSliderPanel {
     resetBtn.addEventListener('click', () => {
       this.driver.resetAll();
       this.syncAllSliders();
+      this.updateAllModifiedIndicators();
     });
     resetRow.appendChild(resetBtn);
     this.root.appendChild(resetRow);
   }
 
-  private renderPresets(presets: ShapePreset[]): void {
+  private renderModeToggle(): void {
+    const row = document.createElement('div');
+    row.className = 'shape-mode-row';
+
+    const toggle = document.createElement('div');
+    toggle.className = 'shape-mode-toggle';
+
+    const simpleBtn = document.createElement('button');
+    simpleBtn.className = 'shape-mode-btn' + (this.mode === 'simple' ? ' active' : '');
+    simpleBtn.textContent = 'Simple';
+    simpleBtn.addEventListener('click', () => {
+      if (this.mode === 'simple') return;
+      this.mode = 'simple';
+      this.searchTerm = '';
+      localStorage.setItem(MODE_KEY, 'simple');
+      this.render();
+      this.syncAllSliders();
+    });
+    toggle.appendChild(simpleBtn);
+
+    const detailBtn = document.createElement('button');
+    detailBtn.className = 'shape-mode-btn' + (this.mode === 'detail' ? ' active' : '');
+    detailBtn.textContent = 'Detail';
+    detailBtn.addEventListener('click', () => {
+      if (this.mode === 'detail') return;
+      this.mode = 'detail';
+      localStorage.setItem(MODE_KEY, 'detail');
+      this.render();
+      this.syncAllSliders();
+    });
+    toggle.appendChild(detailBtn);
+
+    row.appendChild(toggle);
+    this.root.appendChild(row);
+  }
+
+  private renderSearch(): void {
+    const row = document.createElement('div');
+    row.className = 'shape-search-row';
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'shape-search-input';
+    input.placeholder = 'Search sliders\u2026';
+    input.value = this.searchTerm;
+
+    input.addEventListener('input', () => {
+      if (this.searchDebounceTimer !== null) {
+        clearTimeout(this.searchDebounceTimer);
+      }
+      this.searchDebounceTimer = window.setTimeout(() => {
+        this.searchTerm = input.value.toLowerCase().trim();
+        this.applySearchFilter();
+      }, 150);
+    });
+
+    row.appendChild(input);
+    this.root.appendChild(row);
+  }
+
+  private renderSection(section: SectionId): void {
+    const sectionEl = document.createElement('div');
+    sectionEl.className = 'shape-section';
+    sectionEl.dataset.section = section;
+
+    // Collapsible header
+    const header = document.createElement('div');
+    header.className = 'shape-section-header';
+
+    const title = document.createElement('span');
+    title.className = 'shape-section-title';
+    title.textContent = section === 'body' ? 'Body' : 'Face';
+    header.appendChild(title);
+
+    const chevron = document.createElement('span');
+    chevron.className = 'shape-section-chevron';
+    chevron.textContent = '\u25BC';
+    header.appendChild(chevron);
+
+    header.addEventListener('click', () => {
+      sectionEl.classList.toggle('collapsed');
+    });
+    sectionEl.appendChild(header);
+
+    // Section body (presets + groups)
+    const body = document.createElement('div');
+    body.className = 'shape-section-body';
+
+    // Presets
+    const sectionPresets = SHAPE_PRESETS.filter((p) => p.section === section);
+    if (sectionPresets.length > 0) {
+      this.renderPresets(body, sectionPresets);
+    }
+
+    // Category groups
+    const groups = CATEGORY_GROUPS.filter((g) => g.section === section);
+    for (const group of groups) {
+      this.renderGroup(body, group.id, group.label, section);
+    }
+
+    sectionEl.appendChild(body);
+    this.root.appendChild(sectionEl);
+  }
+
+  private renderPresets(container: HTMLElement, presets: ShapePreset[]): void {
     const row = document.createElement('div');
     row.className = 'shape-presets';
 
@@ -250,44 +488,66 @@ export class ShapeSliderPanel {
       btn.addEventListener('click', () => {
         this.driver.applyPreset(preset);
         this.syncAllSliders();
+        this.updateAllModifiedIndicators();
       });
       row.appendChild(btn);
     }
 
-    this.root.appendChild(row);
+    container.appendChild(row);
   }
 
   private renderGroup(
+    container: HTMLElement,
     category: ShapeCategory,
     label: string,
-    startCollapsed: boolean,
+    section: SectionId,
   ): void {
-    const params = SHAPE_PARAMETERS.filter((p) => {
+    const allParams = SHAPE_PARAMETERS.filter((p) => {
       if (p.category !== category) return false;
       if (this.isMasculine && p.hideOnMasculine) return false;
       return true;
     });
-    if (params.length === 0) return;
+
+    // In simple mode, only show essential params
+    const visibleParams = this.mode === 'simple'
+      ? allParams.filter((p) => p.essential)
+      : allParams;
+
+    if (visibleParams.length === 0) return;
 
     const group = document.createElement('div');
-    group.className = 'shape-group' + (startCollapsed ? ' collapsed' : '');
+    group.className = 'shape-group collapsed';
+    group.dataset.category = category;
 
-    // Header (click to toggle)
+    // Header
     const header = document.createElement('div');
     header.className = 'shape-group-header';
 
     const labelEl = document.createElement('span');
     labelEl.className = 'shape-group-label';
-    labelEl.textContent = `${label} (${params.length})`;
+    this.groupLabels.set(category, labelEl);
+
+    const modifiedEl = document.createElement('span');
+    modifiedEl.className = 'shape-group-modified';
+    this.groupModifiedEls.set(category, modifiedEl);
+
+    // Compute label text with count and modified info
+    this.updateGroupLabel(category, visibleParams.length);
+
+    labelEl.appendChild(modifiedEl);
     header.appendChild(labelEl);
 
     const chevron = document.createElement('span');
     chevron.className = 'shape-group-chevron';
-    chevron.textContent = '\u25BC'; // ▼
+    chevron.textContent = '\u25BC';
     header.appendChild(chevron);
 
     header.addEventListener('click', () => {
+      const wasCollapsed = group.classList.contains('collapsed');
       group.classList.toggle('collapsed');
+      if (wasCollapsed && this.onCategoryExpand) {
+        this.onCategoryExpand(section, category);
+      }
     });
     group.appendChild(header);
 
@@ -295,15 +555,35 @@ export class ShapeSliderPanel {
     const body = document.createElement('div');
     body.className = 'shape-group-body';
 
-    for (const param of params) {
+    for (const param of visibleParams) {
       const displayLabel = (this.isMasculine && param.masculineLabel)
         ? param.masculineLabel
         : param.label;
       this.renderSlider(body, param.id, displayLabel, param.defaultValue);
     }
 
+    // Per-category reset (Detail mode only)
+    if (this.mode === 'detail') {
+      const actions = document.createElement('div');
+      actions.className = 'shape-group-actions';
+
+      const resetBtn = document.createElement('button');
+      resetBtn.className = 'shape-cat-reset-btn';
+      resetBtn.textContent = `Reset ${label}`;
+      resetBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        for (const param of allParams) {
+          this.driver.setValue(param.id, param.defaultValue);
+        }
+        this.syncAllSliders();
+        this.updateAllModifiedIndicators();
+      });
+      actions.appendChild(resetBtn);
+      body.appendChild(actions);
+    }
+
     group.appendChild(body);
-    this.root.appendChild(group);
+    container.appendChild(group);
   }
 
   private renderSlider(
@@ -314,11 +594,16 @@ export class ShapeSliderPanel {
   ): void {
     const row = document.createElement('div');
     row.className = 'shape-slider-row';
+    row.dataset.paramId = paramId;
+
+    const currentVal = this.driver.getValue(paramId);
+    const isModified = currentVal !== defaultValue;
 
     const labelEl = document.createElement('span');
-    labelEl.className = 'shape-slider-label';
+    labelEl.className = 'shape-slider-label' + (isModified ? ' modified' : '');
     labelEl.textContent = label;
     labelEl.title = label;
+    this.sliderLabels.set(paramId, labelEl);
     row.appendChild(labelEl);
 
     const input = document.createElement('input');
@@ -326,12 +611,12 @@ export class ShapeSliderPanel {
     input.className = 'shape-slider-input';
     input.min = '0';
     input.max = '100';
-    input.value = String(this.driver.getValue(paramId));
+    input.value = String(currentVal);
     row.appendChild(input);
 
     const valueEl = document.createElement('span');
     valueEl.className = 'shape-slider-value';
-    valueEl.textContent = String(this.driver.getValue(paramId));
+    valueEl.textContent = String(currentVal);
     row.appendChild(valueEl);
 
     // Live update on input (while dragging)
@@ -339,6 +624,9 @@ export class ShapeSliderPanel {
       const val = parseInt(input.value, 10);
       valueEl.textContent = String(val);
       this.driver.setValue(paramId, val);
+      // Update modified indicator
+      labelEl.classList.toggle('modified', val !== defaultValue);
+      this.updateModifiedCount(paramId);
     });
 
     // Double-click to reset to default
@@ -346,12 +634,104 @@ export class ShapeSliderPanel {
       input.value = String(defaultValue);
       valueEl.textContent = String(defaultValue);
       this.driver.setValue(paramId, defaultValue);
+      labelEl.classList.remove('modified');
+      this.updateModifiedCount(paramId);
     });
 
     this.sliderInputs.set(paramId, input);
     this.sliderValues.set(paramId, valueEl);
 
     container.appendChild(row);
+  }
+
+  /** Apply search filter — hide/show slider rows based on search term */
+  private applySearchFilter(): void {
+    const groups = this.root.querySelectorAll<HTMLElement>('.shape-group');
+    for (const group of groups) {
+      const rows = group.querySelectorAll<HTMLElement>('.shape-slider-row');
+      let anyVisible = false;
+      for (const row of rows) {
+        const paramId = row.dataset.paramId;
+        if (!paramId) continue;
+        const param = SHAPE_PARAMETERS.find((p) => p.id === paramId);
+        if (!param) continue;
+        const label = (this.isMasculine && param.masculineLabel)
+          ? param.masculineLabel.toLowerCase()
+          : param.label.toLowerCase();
+        const match = !this.searchTerm || label.includes(this.searchTerm);
+        row.style.display = match ? '' : 'none';
+        if (match) anyVisible = true;
+      }
+      // Hide entire group if no sliders match
+      group.style.display = anyVisible ? '' : 'none';
+      // Auto-expand groups with search results
+      if (anyVisible && this.searchTerm) {
+        group.classList.remove('collapsed');
+      }
+    }
+
+    // Hide sections if all their groups are hidden
+    const sections = this.root.querySelectorAll<HTMLElement>('.shape-section');
+    for (const section of sections) {
+      const visibleGroups = section.querySelectorAll<HTMLElement>('.shape-group:not([style*="display: none"])');
+      section.style.display = visibleGroups.length > 0 || !this.searchTerm ? '' : 'none';
+    }
+  }
+
+  /** Update the modified count badge for the category that contains paramId */
+  private updateModifiedCount(paramId: string): void {
+    const param = SHAPE_PARAMETERS.find((p) => p.id === paramId);
+    if (!param) return;
+    this.updateGroupModifiedEl(param.category);
+  }
+
+  private updateGroupModifiedEl(category: ShapeCategory): void {
+    const modifiedEl = this.groupModifiedEls.get(category);
+    if (!modifiedEl) return;
+
+    const catParams = SHAPE_PARAMETERS.filter((p) => {
+      if (p.category !== category) return false;
+      if (this.isMasculine && p.hideOnMasculine) return false;
+      if (this.mode === 'simple' && !p.essential) return false;
+      return true;
+    });
+
+    let modifiedCount = 0;
+    for (const p of catParams) {
+      if (this.driver.getValue(p.id) !== p.defaultValue) modifiedCount++;
+    }
+
+    modifiedEl.textContent = modifiedCount > 0
+      ? ` ${modifiedCount}/${catParams.length}`
+      : '';
+  }
+
+  private updateGroupLabel(category: ShapeCategory, totalCount: number): void {
+    const labelEl = this.groupLabels.get(category);
+    if (!labelEl) return;
+    const group = CATEGORY_GROUPS.find((g) => g.id === category);
+    if (!group) return;
+    labelEl.textContent = `${group.label} (${totalCount})`;
+    // Re-append the modified element since textContent clears children
+    const modifiedEl = this.groupModifiedEls.get(category);
+    if (modifiedEl) {
+      labelEl.appendChild(modifiedEl);
+      this.updateGroupModifiedEl(category);
+    }
+  }
+
+  private updateAllModifiedIndicators(): void {
+    // Update individual slider labels
+    for (const [paramId, labelEl] of this.sliderLabels) {
+      const param = SHAPE_PARAMETERS.find((p) => p.id === paramId);
+      if (!param) continue;
+      const val = this.driver.getValue(paramId);
+      labelEl.classList.toggle('modified', val !== param.defaultValue);
+    }
+    // Update group counts
+    for (const [category] of this.groupModifiedEls) {
+      this.updateGroupModifiedEl(category);
+    }
   }
 
   /** Sync all slider UI to current driver values (after preset or reset) */
@@ -365,8 +745,14 @@ export class ShapeSliderPanel {
   }
 
   dispose(): void {
+    if (this.searchDebounceTimer !== null) {
+      clearTimeout(this.searchDebounceTimer);
+    }
     this.sliderInputs.clear();
     this.sliderValues.clear();
+    this.sliderLabels.clear();
+    this.groupLabels.clear();
+    this.groupModifiedEls.clear();
     this.root.remove();
   }
 }

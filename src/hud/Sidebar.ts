@@ -15,6 +15,8 @@ import type { AlphaMaskManager } from '../avatar/AlphaMaskManager.js';
 import type { Engine, WebGPUEngine } from '@babylonjs/core';
 import type { ManifestSerializer } from '../avatar/ManifestSerializer.js';
 import type { OutfitStore } from '../avatar/OutfitStore.js';
+import type { DressingRoomCamera } from '../camera/DressingRoomCamera.js';
+import type { IdleAnimationManager } from '../avatar/IdleAnimationManager.js';
 
 const SIDEBAR_STYLES = `
   #avatar-sidebar {
@@ -343,6 +345,14 @@ export class Sidebar {
 
   connectBreathingAndBlink(breathing: BreathingDriver, blink: BlinkDriver): void {
     this.bodyTab.connectBreathingAndBlink(breathing, blink);
+  }
+
+  connectCamera(camera: DressingRoomCamera): void {
+    this.bodyTab.connectCamera(camera);
+  }
+
+  connectIdleAnimations(anims: IdleAnimationManager): void {
+    this.bodyTab.connectIdleAnimations(anims);
   }
 
   connectSkinManager(manager: SkinMaterialManager): void {

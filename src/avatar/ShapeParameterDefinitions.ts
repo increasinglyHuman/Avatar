@@ -123,6 +123,7 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
     label: 'Height',
     category: 'body',
     defaultValue: 50,
+    essential: true,
     drivers: [
       // SL param 33: scales bones along their length axis proportionally.
       // SL uses Z-up, our skeleton uses Y for bone length (matches leg_length/torso_length).
@@ -147,6 +148,7 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
     label: 'Body Thickness',
     category: 'body',
     defaultValue: 50,
+    essential: true,
     drivers: [
       { bone: 'mChest', property: 'scale', axis: 'x', range: [-0.15, 0.15] },
       { bone: 'mChest', property: 'scale', axis: 'z', range: [-0.1, 0.1] },
@@ -159,6 +161,7 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
     label: 'Body Fat',
     category: 'body',
     defaultValue: 30,
+    essential: true,
     drivers: [
       { bone: 'BELLY', property: 'scale', axis: 'x', range: [-0.1, 0.25] },
       { bone: 'BELLY', property: 'scale', axis: 'y', range: [-0.05, 0.15] },
@@ -224,6 +227,7 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
     label: 'Torso Length',
     category: 'torso',
     defaultValue: 50,
+    essential: true,
     drivers: [
       { bone: 'mTorso', property: 'scale', axis: 'y', range: [-0.1, 0.1] },
     ],
@@ -234,6 +238,7 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
     masculineLabel: 'Pec Size',
     category: 'torso',
     defaultValue: 40,
+    essential: true,
     drivers: [
       // 50% increase over previous — matching SL's dramatic breast morph range
       { bone: 'LEFT_PEC', property: 'scale', axis: 'x', range: [-0.3, 0.9] },
@@ -271,6 +276,7 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
     label: 'Belly Size',
     category: 'torso',
     defaultValue: 25,
+    essential: true,
     drivers: [
       // Widened for more dramatic belly range
       { bone: 'BELLY', property: 'scale', axis: 'x', range: [-0.1, 0.35] },
@@ -305,6 +311,7 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
     label: 'Arm Length',
     category: 'arms',
     defaultValue: 50,
+    essential: true,
     drivers: [
       ...symmetric('mShoulder', 'scale', 'y', [-0.08, 0.08]),
       ...symmetric('mElbow', 'scale', 'y', [-0.08, 0.08]),
@@ -335,6 +342,7 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
     label: 'Hand Size',
     category: 'arms',
     defaultValue: 50,
+    essential: true,
     drivers: [
       ...symmetricCV('HAND', 'scale', 'x', [-0.1, 0.1]),
       ...symmetricCV('HAND', 'scale', 'y', [-0.1, 0.1]),
@@ -360,6 +368,7 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
     label: 'Leg Length',
     category: 'legs',
     defaultValue: 50,
+    essential: true,
     drivers: [
       ...symmetric('mHip', 'scale', 'y', [-0.08, 0.08]),
       ...symmetric('mKnee', 'scale', 'y', [-0.08, 0.08]),
@@ -370,6 +379,7 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
     label: 'Upper Leg',
     category: 'legs',
     defaultValue: 50,
+    essential: true,
     drivers: [
       ...symmetricCV('UPPER_LEG', 'scale', 'x', [-0.1, 0.12]),
       ...symmetricCV('UPPER_LEG', 'scale', 'z', [-0.08, 0.1]),
@@ -399,6 +409,7 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
     label: 'Foot Size',
     category: 'legs',
     defaultValue: 50,
+    essential: true,
     drivers: [
       ...symmetricCV('FOOT', 'scale', 'x', [-0.06, 0.06]),
       ...symmetricCV('FOOT', 'scale', 'y', [-0.06, 0.06]),
@@ -483,6 +494,7 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
     label: 'Butt Size',
     category: 'details',
     defaultValue: 40,
+    essential: true,
     drivers: [
       // BUTT CV bone has 0 weights in Ruth2 but 339 in Roth2 — include it for both.
       // PELVIS covers the entire pelvic/glute region (2732/2041 verts).
@@ -541,6 +553,7 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
     label: 'Head Size',
     category: 'details',
     defaultValue: 50,
+    essential: true,
     drivers: [
       { bone: 'mHead', property: 'scale', axis: 'x', range: [-0.08, 0.08] },
       { bone: 'mHead', property: 'scale', axis: 'y', range: [-0.08, 0.08] },
@@ -805,6 +818,7 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
     label: 'Nose Width',
     category: 'face_nose',
     defaultValue: 50,
+    essential: true,
     drivers: [
       { bone: 'mFaceNoseLeft', property: 'position', axis: 'x', range: [0.004, -0.004] },
       { bone: 'mFaceNoseRight', property: 'position', axis: 'x', range: [-0.004, 0.004] },
@@ -859,6 +873,7 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
     label: 'Upturned Nose',
     category: 'face_nose',
     defaultValue: 50,
+    essential: true,
     drivers: [
       { bone: 'mFaceNoseBase', property: 'position', axis: 'y', range: [-0.003, 0.003] },
       { bone: 'mFaceNoseCenter', property: 'position', axis: 'z', range: [-0.004, 0.004] },
@@ -967,6 +982,7 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
     label: 'Eye Depth',
     category: 'face_eyes',
     defaultValue: 50,
+    essential: true,
     drivers: [
       // Y = forward/back
       { bone: 'mEyeLeft', property: 'position', axis: 'y', range: [-0.006, 0.006] },
@@ -1140,6 +1156,7 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
     label: 'Lip Width',
     category: 'face_mouth',
     defaultValue: 50,
+    essential: true,
     drivers: [
       { bone: 'mFaceLipCornerLeft', property: 'position', axis: 'x', range: [0.004, -0.004] },
       { bone: 'mFaceLipCornerRight', property: 'position', axis: 'x', range: [-0.004, 0.004] },

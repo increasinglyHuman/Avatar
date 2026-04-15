@@ -2,6 +2,9 @@ import type { ShapeParameterDriver } from '../avatar/ShapeParameterDriver.js';
 import type { CVBounceDriver, BounceParams } from '../avatar/CVBounceDriver.js';
 import type { BreathingDriver } from '../avatar/BreathingDriver.js';
 import type { BlinkDriver } from '../avatar/BlinkDriver.js';
+import type { DressingRoomCamera } from '../camera/DressingRoomCamera.js';
+import type { IdleAnimationManager } from '../avatar/IdleAnimationManager.js';
+import type { ShapeCategory, SectionId } from '../avatar/ShapeParameterDefinitions.js';
 import { ShapeSliderPanel } from './ShapeSliderPanel.js';
 
 const PHYSICS_STYLE_ID = 'bb-avatar-physics-styles';
@@ -122,6 +125,27 @@ const REGION_LABELS: Record<string, string> = {
   butt: 'Butt',
 };
 
+/** Map category to camera focus region */
+const CATEGORY_FOCUS: Record<string, 'full' | 'head' | 'torso' | 'legs'> = {
+  body: 'full',
+  torso: 'torso',
+  arms: 'torso',
+  legs: 'legs',
+  details: 'full',
+  face_structure: 'head',
+  face_nose: 'head',
+  face_eyes: 'head',
+  face_mouth: 'head',
+};
+
+/** Map camera focus region to preferred animation index (0=Happy Idle, 1=Thoughtful Head Shake) */
+const FOCUS_ANIM: Record<string, number> = {
+  full: 0,   // Happy Idle — full body movement
+  head: 1,   // Thoughtful Head Shake — minimal body, good for face editing
+  torso: 0,  // Happy Idle — shows torso shape well
+  legs: 0,   // Happy Idle — shows weight shift
+};
+
 /**
  * Shape tab — parametric body & face sliders + physics bounce controls.
  * Wraps ShapeSliderPanel and connects to both ShapeParameterDriver and CVBounceDriver.
@@ -133,6 +157,8 @@ export class BodyTab {
   private breathing: BreathingDriver | null = null;
   private blink: BlinkDriver | null = null;
   private physicsSection: HTMLDivElement | null = null;
+  private camera: DressingRoomCamera | null = null;
+  private idleAnims: IdleAnimationManager | null = null;
 
   constructor(container: HTMLElement) {
     this.root = document.createElement('div');
@@ -146,6 +172,7 @@ export class BodyTab {
     this.panel?.dispose();
     this.root.innerHTML = '';
     this.panel = new ShapeSliderPanel(this.root, driver);
+    this.wireExpandCallback();
     // Re-render physics if already connected
     if (this.cvBounce) this.renderPhysics();
   }
@@ -153,6 +180,16 @@ export class BodyTab {
   /** Update gender state for adaptive labels and param visibility */
   setGender(isMasculine: boolean): void {
     this.panel?.setGender(isMasculine);
+  }
+
+  /** Connect camera for auto-focus on category expand */
+  connectCamera(camera: DressingRoomCamera): void {
+    this.camera = camera;
+  }
+
+  /** Connect idle animation manager for focus-based animation swap */
+  connectIdleAnimations(anims: IdleAnimationManager): void {
+    this.idleAnims = anims;
   }
 
   /** Connect the CV bounce driver to add physics sliders */
@@ -166,6 +203,22 @@ export class BodyTab {
     this.breathing = breathing;
     this.blink = blink;
     this.renderPhysics();
+  }
+
+  private wireExpandCallback(): void {
+    if (!this.panel) return;
+    this.panel.onExpand((_section: SectionId, category: ShapeCategory) => {
+      const region = CATEGORY_FOCUS[category] ?? 'full';
+      // Camera auto-focus
+      if (this.camera) {
+        this.camera.focusOnRegion(region);
+      }
+      // Animation swap
+      if (this.idleAnims && this.idleAnims.getCount() > 1) {
+        const animIndex = FOCUS_ANIM[region] ?? 0;
+        this.idleAnims.play(animIndex, true);
+      }
+    });
   }
 
   private renderPhysics(): void {
