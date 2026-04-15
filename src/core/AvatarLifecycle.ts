@@ -8,6 +8,7 @@ import { DressingRoomCamera } from '../camera/DressingRoomCamera.js';
 import { Sidebar } from '../hud/Sidebar.js';
 import { OpenSimLoader } from '../avatar/OpenSimLoader.js';
 import { ShapeParameterDriver } from '../avatar/ShapeParameterDriver.js';
+import { ShapeStore } from '../avatar/ShapeStore.js';
 import { SkinMaterialManager } from '../avatar/SkinMaterialManager.js';
 import { OpenSimClothingManager } from '../avatar/OpenSimClothingManager.js';
 import { TextureCompositor } from '../avatar/TextureCompositor.js';
@@ -148,6 +149,7 @@ export class AvatarLifecycle {
         this.sidebar.setVisible(false);
       }
       this.sidebar.connectShapeDriver(this.shapeDriver);
+      this.sidebar.connectShapeStore(new ShapeStore());
       this.sidebar.connectSkinManager(this.skinManager);
       this.sidebar.connectWardrobe(this.catalog, this.clothingManager, this.alphaMaskManager);
       this.sidebar.connectOutfits(

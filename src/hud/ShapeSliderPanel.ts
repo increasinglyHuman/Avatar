@@ -5,6 +5,7 @@ import {
   CATEGORY_GROUPS,
 } from '../avatar/ShapeParameterDefinitions.js';
 import type { ShapeCategory, SectionId, ShapePreset } from '../avatar/ShapeParameterDefinitions.js';
+import type { ShapeStore, SavedShape } from '../avatar/ShapeStore.js';
 
 const STYLE_ID = 'bb-avatar-shape-styles';
 const MODE_KEY = 'bb-shape-mode';
@@ -291,6 +292,154 @@ function injectStyles(): void {
   background: rgba(255, 255, 255, 0.08);
   color: rgba(255, 255, 255, 0.6);
 }
+
+/* Shape gallery */
+.shape-gallery-section {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding-bottom: 8px;
+  margin-bottom: 4px;
+}
+.shape-gallery-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0 6px;
+}
+.shape-gallery-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: rgba(255, 255, 255, 0.3);
+  font-weight: 600;
+}
+.shape-save-btn {
+  padding: 3px 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  font-size: 10px;
+  font-family: inherit;
+  transition: background 0.15s, color 0.15s;
+}
+.shape-save-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.8);
+}
+.shape-gallery-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.shape-gallery-empty {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.2);
+  font-style: italic;
+  padding: 4px 0;
+}
+.shape-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.shape-card:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+.shape-card-name {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+.shape-card-meta {
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.2);
+  margin-left: 8px;
+  white-space: nowrap;
+}
+.shape-card-actions {
+  display: flex;
+  gap: 4px;
+  margin-left: 8px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.shape-card:hover .shape-card-actions {
+  opacity: 1;
+}
+.shape-card-action {
+  padding: 2px 4px;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.35);
+  cursor: pointer;
+  font-size: 10px;
+  font-family: inherit;
+  border-radius: 2px;
+  transition: background 0.1s, color 0.1s;
+}
+.shape-card-action:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.7);
+}
+.shape-card-action.delete:hover {
+  color: rgba(255, 100, 100, 0.8);
+}
+
+/* Save shape dialog (inline) */
+.shape-save-dialog {
+  display: flex;
+  gap: 4px;
+  padding: 6px 0;
+}
+.shape-save-input {
+  flex: 1;
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 11px;
+  font-family: inherit;
+  outline: none;
+  box-sizing: border-box;
+}
+.shape-save-input:focus {
+  border-color: rgba(255, 255, 255, 0.25);
+}
+.shape-save-confirm {
+  padding: 4px 10px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  font-size: 11px;
+  font-family: inherit;
+}
+.shape-save-confirm:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+.shape-save-cancel {
+  padding: 4px 6px;
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.35);
+  cursor: pointer;
+  font-size: 11px;
+  font-family: inherit;
+}
 `;
   document.head.appendChild(style);
 }
@@ -302,6 +451,8 @@ function injectStyles(): void {
 export class ShapeSliderPanel {
   private root: HTMLDivElement;
   private driver: ShapeParameterDriver;
+  private shapeStore: ShapeStore | null = null;
+  private galleryEl: HTMLDivElement | null = null;
   private sliderInputs: Map<string, HTMLInputElement> = new Map();
   private sliderValues: Map<string, HTMLSpanElement> = new Map();
   private sliderLabels: Map<string, HTMLSpanElement> = new Map();
@@ -321,6 +472,12 @@ export class ShapeSliderPanel {
     this.root.className = 'shape-panel';
     container.appendChild(this.root);
     this.render();
+  }
+
+  /** Connect the shape store for save/load functionality */
+  connectStore(store: ShapeStore): void {
+    this.shapeStore = store;
+    this.refreshGallery();
   }
 
   /** Register callback for when a category group is expanded */
@@ -346,6 +503,9 @@ export class ShapeSliderPanel {
 
     // Mode toggle
     this.renderModeToggle();
+
+    // Shape gallery (save/load)
+    this.renderGallery();
 
     // Search (Detail mode only)
     if (this.mode === 'detail') {
@@ -742,6 +902,180 @@ export class ShapeSliderPanel {
       const valueEl = this.sliderValues.get(paramId);
       if (valueEl) valueEl.textContent = String(val);
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Shape Gallery (save/load)
+  // ---------------------------------------------------------------------------
+
+  private renderGallery(): void {
+    const section = document.createElement('div');
+    section.className = 'shape-gallery-section';
+
+    // Header with save button
+    const header = document.createElement('div');
+    header.className = 'shape-gallery-header';
+
+    const label = document.createElement('span');
+    label.className = 'shape-gallery-label';
+    label.textContent = 'Saved Shapes';
+    header.appendChild(label);
+
+    const saveBtn = document.createElement('button');
+    saveBtn.className = 'shape-save-btn';
+    saveBtn.textContent = '+ Save';
+    saveBtn.addEventListener('click', () => this.showSaveDialog(section));
+    header.appendChild(saveBtn);
+
+    section.appendChild(header);
+
+    // Gallery list (populated by refreshGallery)
+    this.galleryEl = document.createElement('div');
+    this.galleryEl.className = 'shape-gallery-list';
+    section.appendChild(this.galleryEl);
+
+    this.root.appendChild(section);
+    this.refreshGallery();
+  }
+
+  /** Re-render the gallery list from store */
+  private refreshGallery(): void {
+    if (!this.galleryEl) return;
+    this.galleryEl.innerHTML = '';
+
+    if (!this.shapeStore) {
+      const empty = document.createElement('div');
+      empty.className = 'shape-gallery-empty';
+      empty.textContent = 'No saved shapes';
+      this.galleryEl.appendChild(empty);
+      return;
+    }
+
+    const shapes = this.shapeStore.loadAll();
+    if (shapes.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'shape-gallery-empty';
+      empty.textContent = 'No saved shapes';
+      this.galleryEl.appendChild(empty);
+      return;
+    }
+
+    // Show newest first
+    for (const shape of [...shapes].reverse()) {
+      this.renderShapeCard(shape);
+    }
+  }
+
+  private renderShapeCard(shape: SavedShape): void {
+    if (!this.galleryEl) return;
+
+    const card = document.createElement('div');
+    card.className = 'shape-card';
+
+    // Click card to apply
+    card.addEventListener('click', (e) => {
+      // Don't apply if clicking an action button
+      if ((e.target as HTMLElement).closest('.shape-card-actions')) return;
+      if (!this.shapeStore) return;
+      this.shapeStore.applyShape(shape, this.driver);
+      this.syncAllSliders();
+      this.updateAllModifiedIndicators();
+    });
+
+    const name = document.createElement('span');
+    name.className = 'shape-card-name';
+    name.textContent = shape.name;
+    name.title = shape.name;
+    card.appendChild(name);
+
+    // Param count badge
+    const meta = document.createElement('span');
+    meta.className = 'shape-card-meta';
+    const paramCount = Object.keys(shape.params).length;
+    meta.textContent = `${paramCount}p`;
+    meta.title = `${paramCount} parameters modified from defaults`;
+    card.appendChild(meta);
+
+    // Action buttons (visible on hover)
+    const actions = document.createElement('div');
+    actions.className = 'shape-card-actions';
+
+    // Overwrite button
+    const overwriteBtn = document.createElement('button');
+    overwriteBtn.className = 'shape-card-action';
+    overwriteBtn.textContent = 'Update';
+    overwriteBtn.title = 'Overwrite with current sliders';
+    overwriteBtn.addEventListener('click', () => {
+      if (!this.shapeStore) return;
+      this.shapeStore.update(shape.id, this.driver);
+      this.refreshGallery();
+    });
+    actions.appendChild(overwriteBtn);
+
+    // Delete button
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'shape-card-action delete';
+    deleteBtn.textContent = 'Del';
+    deleteBtn.title = 'Delete this shape';
+    deleteBtn.addEventListener('click', () => {
+      if (!this.shapeStore) return;
+      this.shapeStore.delete(shape.id);
+      this.refreshGallery();
+    });
+    actions.appendChild(deleteBtn);
+
+    card.appendChild(actions);
+    this.galleryEl.appendChild(card);
+  }
+
+  private showSaveDialog(container: HTMLElement): void {
+    // Remove existing dialog if any
+    const existing = container.querySelector('.shape-save-dialog');
+    if (existing) { existing.remove(); return; }
+
+    const dialog = document.createElement('div');
+    dialog.className = 'shape-save-dialog';
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'shape-save-input';
+    input.placeholder = 'Shape name\u2026';
+    input.maxLength = 50;
+    dialog.appendChild(input);
+
+    const confirmBtn = document.createElement('button');
+    confirmBtn.className = 'shape-save-confirm';
+    confirmBtn.textContent = 'Save';
+    confirmBtn.addEventListener('click', () => {
+      const name = input.value.trim();
+      if (!name || !this.shapeStore) return;
+      const gender = this.isMasculine ? 'masculine' : 'feminine';
+      this.shapeStore.save(name, this.driver, gender);
+      dialog.remove();
+      this.refreshGallery();
+    });
+    dialog.appendChild(confirmBtn);
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className = 'shape-save-cancel';
+    cancelBtn.textContent = 'X';
+    cancelBtn.addEventListener('click', () => dialog.remove());
+    dialog.appendChild(cancelBtn);
+
+    // Insert after header
+    const header = container.querySelector('.shape-gallery-header');
+    if (header && header.nextSibling) {
+      container.insertBefore(dialog, header.nextSibling);
+    } else {
+      container.appendChild(dialog);
+    }
+
+    // Focus and handle Enter key
+    input.focus();
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') confirmBtn.click();
+      if (e.key === 'Escape') cancelBtn.click();
+    });
   }
 
   dispose(): void {

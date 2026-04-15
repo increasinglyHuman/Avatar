@@ -17,6 +17,7 @@ import type { ManifestSerializer } from '../avatar/ManifestSerializer.js';
 import type { OutfitStore } from '../avatar/OutfitStore.js';
 import type { DressingRoomCamera } from '../camera/DressingRoomCamera.js';
 import type { IdleAnimationManager } from '../avatar/IdleAnimationManager.js';
+import type { ShapeStore } from '../avatar/ShapeStore.js';
 
 const SIDEBAR_STYLES = `
   #avatar-sidebar {
@@ -353,6 +354,10 @@ export class Sidebar {
 
   connectIdleAnimations(anims: IdleAnimationManager): void {
     this.bodyTab.connectIdleAnimations(anims);
+  }
+
+  connectShapeStore(store: ShapeStore): void {
+    this.bodyTab.connectShapeStore(store);
   }
 
   connectSkinManager(manager: SkinMaterialManager): void {

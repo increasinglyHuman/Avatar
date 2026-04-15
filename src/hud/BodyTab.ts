@@ -4,6 +4,7 @@ import type { BreathingDriver } from '../avatar/BreathingDriver.js';
 import type { BlinkDriver } from '../avatar/BlinkDriver.js';
 import type { DressingRoomCamera } from '../camera/DressingRoomCamera.js';
 import type { IdleAnimationManager } from '../avatar/IdleAnimationManager.js';
+import type { ShapeStore } from '../avatar/ShapeStore.js';
 import type { ShapeCategory, SectionId } from '../avatar/ShapeParameterDefinitions.js';
 import { ShapeSliderPanel } from './ShapeSliderPanel.js';
 
@@ -159,6 +160,7 @@ export class BodyTab {
   private physicsSection: HTMLDivElement | null = null;
   private camera: DressingRoomCamera | null = null;
   private idleAnims: IdleAnimationManager | null = null;
+  private shapeStore: ShapeStore | null = null;
 
   constructor(container: HTMLElement) {
     this.root = document.createElement('div');
@@ -172,6 +174,7 @@ export class BodyTab {
     this.panel?.dispose();
     this.root.innerHTML = '';
     this.panel = new ShapeSliderPanel(this.root, driver);
+    if (this.shapeStore) this.panel.connectStore(this.shapeStore);
     this.wireExpandCallback();
     // Re-render physics if already connected
     if (this.cvBounce) this.renderPhysics();
@@ -190,6 +193,12 @@ export class BodyTab {
   /** Connect idle animation manager for focus-based animation swap */
   connectIdleAnimations(anims: IdleAnimationManager): void {
     this.idleAnims = anims;
+  }
+
+  /** Connect shape store for save/load UI */
+  connectShapeStore(store: ShapeStore): void {
+    this.shapeStore = store;
+    this.panel?.connectStore(store);
   }
 
   /** Connect the CV bounce driver to add physics sliders */
