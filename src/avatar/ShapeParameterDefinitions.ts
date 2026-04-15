@@ -544,6 +544,13 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
       { bone: 'mHead', property: 'scale', axis: 'x', range: [-0.08, 0.08] },
       { bone: 'mHead', property: 'scale', axis: 'y', range: [-0.08, 0.08] },
       { bone: 'mHead', property: 'scale', axis: 'z', range: [-0.08, 0.08] },
+      // Eye compensation — scale eyes inversely to keep them normal size in scaled head
+      { bone: 'mEyeLeft', property: 'scale', axis: 'x', range: [0.06, -0.06] },
+      { bone: 'mEyeLeft', property: 'scale', axis: 'y', range: [0.06, -0.06] },
+      { bone: 'mEyeLeft', property: 'scale', axis: 'z', range: [0.06, -0.06] },
+      { bone: 'mEyeRight', property: 'scale', axis: 'x', range: [0.06, -0.06] },
+      { bone: 'mEyeRight', property: 'scale', axis: 'y', range: [0.06, -0.06] },
+      { bone: 'mEyeRight', property: 'scale', axis: 'z', range: [0.06, -0.06] },
     ],
   },
   {
@@ -583,8 +590,19 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
     defaultValue: 50,
     essential: true,
     drivers: [
+      // Face mesh deformation
       { bone: 'mFaceRoot', property: 'scale', axis: 'x', range: [-0.07, 0.07] },
       { bone: 'mFaceRoot', property: 'scale', axis: 'y', range: [0.07, -0.07] },
+      // Eye compensation — keep eyeballs in sockets as face shape changes
+      // SL offsets from param 30646: eyes move inward/outward with face width
+      { bone: 'mEyeLeft', property: 'position', axis: 'x', range: [0.003, -0.003] },
+      { bone: 'mEyeRight', property: 'position', axis: 'x', range: [-0.003, 0.003] },
+      { bone: 'mEyeLeft', property: 'position', axis: 'y', range: [-0.002, 0.002] },
+      { bone: 'mEyeRight', property: 'position', axis: 'y', range: [-0.002, 0.002] },
+      { bone: 'mFaceEyeAltLeft', property: 'position', axis: 'x', range: [0.003, -0.003] },
+      { bone: 'mFaceEyeAltRight', property: 'position', axis: 'x', range: [-0.003, 0.003] },
+      { bone: 'mFaceEyeAltLeft', property: 'position', axis: 'y', range: [-0.002, 0.002] },
+      { bone: 'mFaceEyeAltRight', property: 'position', axis: 'y', range: [-0.002, 0.002] },
     ],
   },
   {
@@ -594,6 +612,11 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
     defaultValue: 50,
     drivers: [
       { bone: 'mFaceRoot', property: 'scale', axis: 'y', range: [-0.15, 0.15] },
+      // Eye compensation — eyes follow vertical stretch
+      { bone: 'mEyeLeft', property: 'position', axis: 'y', range: [-0.003, 0.003] },
+      { bone: 'mEyeRight', property: 'position', axis: 'y', range: [-0.003, 0.003] },
+      { bone: 'mFaceEyeAltLeft', property: 'position', axis: 'y', range: [-0.003, 0.003] },
+      { bone: 'mFaceEyeAltRight', property: 'position', axis: 'y', range: [-0.003, 0.003] },
     ],
   },
   {
@@ -604,6 +627,11 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
     essential: true,
     drivers: [
       { bone: 'mFaceRoot', property: 'scale', axis: 'z', range: [-0.1, 0.1] },
+      // Eye compensation — eyes follow depth change
+      { bone: 'mEyeLeft', property: 'position', axis: 'z', range: [-0.004, 0.004] },
+      { bone: 'mEyeRight', property: 'position', axis: 'z', range: [-0.004, 0.004] },
+      { bone: 'mFaceEyeAltLeft', property: 'position', axis: 'z', range: [-0.004, 0.004] },
+      { bone: 'mFaceEyeAltRight', property: 'position', axis: 'z', range: [-0.004, 0.004] },
     ],
   },
   {
@@ -615,6 +643,15 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
       { bone: 'mFaceRoot', property: 'scale', axis: 'x', range: [0.05, -0.05] },
       { bone: 'mFaceRoot', property: 'scale', axis: 'y', range: [-0.05, 0.05] },
       { bone: 'mFaceChin', property: 'position', axis: 'y', range: [0.003, -0.003] },
+      // Eye compensation from SL param 30647
+      { bone: 'mEyeLeft', property: 'position', axis: 'x', range: [-0.004, 0.004] },
+      { bone: 'mEyeRight', property: 'position', axis: 'x', range: [0.004, -0.004] },
+      { bone: 'mEyeLeft', property: 'position', axis: 'y', range: [0.003, -0.003] },
+      { bone: 'mEyeRight', property: 'position', axis: 'y', range: [0.003, -0.003] },
+      { bone: 'mFaceEyeAltLeft', property: 'position', axis: 'x', range: [-0.004, 0.004] },
+      { bone: 'mFaceEyeAltRight', property: 'position', axis: 'x', range: [0.004, -0.004] },
+      { bone: 'mFaceEyeAltLeft', property: 'position', axis: 'y', range: [0.003, -0.003] },
+      { bone: 'mFaceEyeAltRight', property: 'position', axis: 'y', range: [0.003, -0.003] },
     ],
   },
   {
