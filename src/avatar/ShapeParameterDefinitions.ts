@@ -78,8 +78,8 @@ export const CATEGORY_GROUPS: CategoryGroup[] = [
   // Face section
   { id: 'face_structure', label: 'Jaw & Chin',      section: 'face' },
   { id: 'face_nose',      label: 'Nose',            section: 'face' },
-  { id: 'face_eyes',      label: 'Eyes & Brows',    section: 'face' },
-  { id: 'face_mouth',     label: 'Mouth & Forehead', section: 'face' },
+  { id: 'face_eyes',      label: 'Eyes, Brows & Forehead', section: 'face' },
+  { id: 'face_mouth',     label: 'Mouth',            section: 'face' },
 ];
 
 // ---------------------------------------------------------------------------
@@ -488,11 +488,12 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
       // PELVIS covers the entire pelvic/glute region (2732/2041 verts).
       // UPPER_LEG extends into the glute area (2034/1861 verts each).
       // Driver silently skips bones with no vertex weights.
-      { bone: 'BUTT', property: 'scale', axis: 'x', range: [-0.1, 0.3] },
-      { bone: 'BUTT', property: 'scale', axis: 'z', range: [-0.1, 0.35] },
-      { bone: 'PELVIS', property: 'scale', axis: 'z', range: [-0.08, 0.25] },
-      ...symmetricCV('UPPER_LEG', 'scale', 'z', [-0.05, 0.15]),
-      ...symmetricCV('UPPER_LEG', 'scale', 'x', [-0.03, 0.08]),
+      // Doubled ranges for more dramatic butt scaling
+      { bone: 'BUTT', property: 'scale', axis: 'x', range: [-0.2, 0.6] },
+      { bone: 'BUTT', property: 'scale', axis: 'z', range: [-0.2, 0.7] },
+      { bone: 'PELVIS', property: 'scale', axis: 'z', range: [-0.15, 0.5] },
+      ...symmetricCV('UPPER_LEG', 'scale', 'z', [-0.1, 0.3]),
+      ...symmetricCV('UPPER_LEG', 'scale', 'x', [-0.06, 0.16]),
     ],
   },
   {
@@ -612,11 +613,9 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
     defaultValue: 50,
     drivers: [
       { bone: 'mFaceRoot', property: 'scale', axis: 'y', range: [-0.15, 0.15] },
-      // Eye compensation — eyes follow vertical stretch
-      { bone: 'mEyeLeft', property: 'position', axis: 'y', range: [-0.003, 0.003] },
-      { bone: 'mEyeRight', property: 'position', axis: 'y', range: [-0.003, 0.003] },
-      { bone: 'mFaceEyeAltLeft', property: 'position', axis: 'y', range: [-0.003, 0.003] },
-      { bone: 'mFaceEyeAltRight', property: 'position', axis: 'y', range: [-0.003, 0.003] },
+      // Eye compensation — Z=up/down, eyes follow vertical stretch
+      { bone: 'mEyeLeft', property: 'position', axis: 'z', range: [-0.004, 0.004] },
+      { bone: 'mEyeRight', property: 'position', axis: 'z', range: [-0.004, 0.004] },
     ],
   },
   {
@@ -643,15 +642,11 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
       { bone: 'mFaceRoot', property: 'scale', axis: 'x', range: [0.05, -0.05] },
       { bone: 'mFaceRoot', property: 'scale', axis: 'y', range: [-0.05, 0.05] },
       { bone: 'mFaceChin', property: 'position', axis: 'y', range: [0.003, -0.003] },
-      // Eye compensation from SL param 30647
-      { bone: 'mEyeLeft', property: 'position', axis: 'x', range: [-0.004, 0.004] },
-      { bone: 'mEyeRight', property: 'position', axis: 'x', range: [0.004, -0.004] },
-      { bone: 'mEyeLeft', property: 'position', axis: 'y', range: [0.003, -0.003] },
-      { bone: 'mEyeRight', property: 'position', axis: 'y', range: [0.003, -0.003] },
-      { bone: 'mFaceEyeAltLeft', property: 'position', axis: 'x', range: [-0.004, 0.004] },
-      { bone: 'mFaceEyeAltRight', property: 'position', axis: 'x', range: [0.004, -0.004] },
-      { bone: 'mFaceEyeAltLeft', property: 'position', axis: 'y', range: [0.003, -0.003] },
-      { bone: 'mFaceEyeAltRight', property: 'position', axis: 'y', range: [0.003, -0.003] },
+      // Eye compensation — narrowing pushes eyes inward (X), stretching moves up (Z)
+      { bone: 'mEyeLeft', property: 'position', axis: 'x', range: [0.004, -0.004] },
+      { bone: 'mEyeRight', property: 'position', axis: 'x', range: [-0.004, 0.004] },
+      { bone: 'mEyeLeft', property: 'position', axis: 'z', range: [-0.003, 0.003] },
+      { bone: 'mEyeRight', property: 'position', axis: 'z', range: [-0.003, 0.003] },
     ],
   },
   {
@@ -795,10 +790,10 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
     category: 'face_structure',
     defaultValue: 25,
     drivers: [
-      { bone: 'mFaceEar2Left', property: 'position', axis: 'y', range: [0, 0.02] },
-      { bone: 'mFaceEar2Left', property: 'position', axis: 'z', range: [0, -0.015] },
-      { bone: 'mFaceEar2Right', property: 'position', axis: 'y', range: [0, 0.02] },
-      { bone: 'mFaceEar2Right', property: 'position', axis: 'z', range: [0, -0.015] },
+      { bone: 'mFaceEar2Left', property: 'position', axis: 'y', range: [0, 0.04] },
+      { bone: 'mFaceEar2Left', property: 'position', axis: 'z', range: [0, -0.03] },
+      { bone: 'mFaceEar2Right', property: 'position', axis: 'y', range: [0, 0.04] },
+      { bone: 'mFaceEar2Right', property: 'position', axis: 'z', range: [0, -0.03] },
     ],
   },
 
@@ -921,16 +916,25 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
   },
 
   // =========================================================================
-  // FACE: EYES & BROWS (original 5 + new ADR-016 params)
+  // FACE: EYES & BROWS — axis mapping: X=left/right, Y=forward/back, Z=up/down
+  // mFaceEyeAlt* have ZERO vertex weights — use mEyeLeft/Right + lid bones instead
   // =========================================================================
   {
     id: 'eye_spacing',
     label: 'Eye Spacing',
     category: 'face_eyes',
     defaultValue: 50,
+    essential: true,
     drivers: [
-      { bone: 'mFaceEyeAltLeft', property: 'position', axis: 'x', range: [0.005, -0.005] },
-      { bone: 'mFaceEyeAltRight', property: 'position', axis: 'x', range: [-0.005, 0.005] },
+      // mEyeLeft/Right have 145 verts each — use these, not mFaceEyeAlt (0 verts)
+      { bone: 'mEyeLeft', property: 'position', axis: 'x', range: [-0.005, 0.005] },
+      { bone: 'mEyeRight', property: 'position', axis: 'x', range: [0.005, -0.005] },
+      { bone: 'mFaceEyeLidUpperLeft', property: 'position', axis: 'x', range: [-0.005, 0.005] },
+      { bone: 'mFaceEyeLidUpperRight', property: 'position', axis: 'x', range: [0.005, -0.005] },
+      { bone: 'mFaceEyeLidLowerLeft', property: 'position', axis: 'x', range: [-0.005, 0.005] },
+      { bone: 'mFaceEyeLidLowerRight', property: 'position', axis: 'x', range: [0.005, -0.005] },
+      { bone: 'mFaceEyecornerInnerLeft', property: 'position', axis: 'x', range: [-0.003, 0.003] },
+      { bone: 'mFaceEyecornerInnerRight', property: 'position', axis: 'x', range: [0.003, -0.003] },
     ],
   },
   {
@@ -938,11 +942,23 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
     label: 'Eye Size',
     category: 'face_eyes',
     defaultValue: 50,
+    essential: true,
     drivers: [
-      { bone: 'mFaceEyeAltLeft', property: 'scale', axis: 'x', range: [-0.12, 0.12] },
-      { bone: 'mFaceEyeAltLeft', property: 'scale', axis: 'y', range: [-0.12, 0.12] },
-      { bone: 'mFaceEyeAltRight', property: 'scale', axis: 'x', range: [-0.12, 0.12] },
-      { bone: 'mFaceEyeAltRight', property: 'scale', axis: 'y', range: [-0.12, 0.12] },
+      // Scale eye and lid bones uniformly
+      { bone: 'mEyeLeft', property: 'scale', axis: 'x', range: [-0.15, 0.15] },
+      { bone: 'mEyeLeft', property: 'scale', axis: 'y', range: [-0.15, 0.15] },
+      { bone: 'mEyeLeft', property: 'scale', axis: 'z', range: [-0.15, 0.15] },
+      { bone: 'mEyeRight', property: 'scale', axis: 'x', range: [-0.15, 0.15] },
+      { bone: 'mEyeRight', property: 'scale', axis: 'y', range: [-0.15, 0.15] },
+      { bone: 'mEyeRight', property: 'scale', axis: 'z', range: [-0.15, 0.15] },
+      { bone: 'mFaceEyeLidUpperLeft', property: 'scale', axis: 'x', range: [-0.1, 0.1] },
+      { bone: 'mFaceEyeLidUpperLeft', property: 'scale', axis: 'z', range: [-0.1, 0.1] },
+      { bone: 'mFaceEyeLidUpperRight', property: 'scale', axis: 'x', range: [-0.1, 0.1] },
+      { bone: 'mFaceEyeLidUpperRight', property: 'scale', axis: 'z', range: [-0.1, 0.1] },
+      { bone: 'mFaceEyeLidLowerLeft', property: 'scale', axis: 'x', range: [-0.1, 0.1] },
+      { bone: 'mFaceEyeLidLowerLeft', property: 'scale', axis: 'z', range: [-0.1, 0.1] },
+      { bone: 'mFaceEyeLidLowerRight', property: 'scale', axis: 'x', range: [-0.1, 0.1] },
+      { bone: 'mFaceEyeLidLowerRight', property: 'scale', axis: 'z', range: [-0.1, 0.1] },
     ],
   },
   {
@@ -951,8 +967,13 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
     category: 'face_eyes',
     defaultValue: 50,
     drivers: [
-      { bone: 'mFaceEyeAltLeft', property: 'position', axis: 'z', range: [-0.004, 0.004] },
-      { bone: 'mFaceEyeAltRight', property: 'position', axis: 'z', range: [-0.004, 0.004] },
+      // Y = forward/back
+      { bone: 'mEyeLeft', property: 'position', axis: 'y', range: [-0.006, 0.006] },
+      { bone: 'mEyeRight', property: 'position', axis: 'y', range: [-0.006, 0.006] },
+      { bone: 'mFaceEyeLidUpperLeft', property: 'position', axis: 'y', range: [-0.004, 0.004] },
+      { bone: 'mFaceEyeLidUpperRight', property: 'position', axis: 'y', range: [-0.004, 0.004] },
+      { bone: 'mFaceEyeLidLowerLeft', property: 'position', axis: 'y', range: [-0.004, 0.004] },
+      { bone: 'mFaceEyeLidLowerRight', property: 'position', axis: 'y', range: [-0.004, 0.004] },
     ],
   },
   {
@@ -960,13 +981,15 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
     label: 'Brow Height',
     category: 'face_eyes',
     defaultValue: 50,
+    essential: true,
     drivers: [
-      { bone: 'mFaceEyebrowCenterLeft', property: 'position', axis: 'y', range: [-0.004, 0.004] },
-      { bone: 'mFaceEyebrowCenterRight', property: 'position', axis: 'y', range: [-0.004, 0.004] },
-      { bone: 'mFaceEyebrowInnerLeft', property: 'position', axis: 'y', range: [-0.004, 0.004] },
-      { bone: 'mFaceEyebrowInnerRight', property: 'position', axis: 'y', range: [-0.004, 0.004] },
-      { bone: 'mFaceEyebrowOuterLeft', property: 'position', axis: 'y', range: [-0.003, 0.003] },
-      { bone: 'mFaceEyebrowOuterRight', property: 'position', axis: 'y', range: [-0.003, 0.003] },
+      // Z = up/down (was incorrectly Y before)
+      { bone: 'mFaceEyebrowCenterLeft', property: 'position', axis: 'z', range: [-0.006, 0.006] },
+      { bone: 'mFaceEyebrowCenterRight', property: 'position', axis: 'z', range: [-0.006, 0.006] },
+      { bone: 'mFaceEyebrowInnerLeft', property: 'position', axis: 'z', range: [-0.006, 0.006] },
+      { bone: 'mFaceEyebrowInnerRight', property: 'position', axis: 'z', range: [-0.006, 0.006] },
+      { bone: 'mFaceEyebrowOuterLeft', property: 'position', axis: 'z', range: [-0.005, 0.005] },
+      { bone: 'mFaceEyebrowOuterRight', property: 'position', axis: 'z', range: [-0.005, 0.005] },
     ],
   },
   {
@@ -975,9 +998,10 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
     category: 'face_eyes',
     defaultValue: 50,
     drivers: [
-      { bone: 'mFaceForeheadCenter', property: 'position', axis: 'z', range: [-0.004, 0.004] },
-      { bone: 'mFaceForeheadLeft', property: 'position', axis: 'z', range: [-0.003, 0.003] },
-      { bone: 'mFaceForeheadRight', property: 'position', axis: 'z', range: [-0.003, 0.003] },
+      // Y = forward/back protrusion of brow ridge
+      { bone: 'mFaceForeheadCenter', property: 'position', axis: 'y', range: [-0.006, 0.006] },
+      { bone: 'mFaceForeheadLeft', property: 'position', axis: 'y', range: [-0.005, 0.005] },
+      { bone: 'mFaceForeheadRight', property: 'position', axis: 'y', range: [-0.005, 0.005] },
     ],
   },
 
@@ -986,16 +1010,16 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
     label: 'Wide Eyes',
     category: 'face_eyes',
     defaultValue: 50,
-    essential: true,
     drivers: [
-      { bone: 'mFaceEyeLidUpperLeft', property: 'scale', axis: 'x', range: [-0.1, 0.2] },
-      { bone: 'mFaceEyeLidUpperLeft', property: 'scale', axis: 'z', range: [-0.1, 0.2] },
-      { bone: 'mFaceEyeLidUpperRight', property: 'scale', axis: 'x', range: [-0.1, 0.2] },
-      { bone: 'mFaceEyeLidUpperRight', property: 'scale', axis: 'z', range: [-0.1, 0.2] },
-      { bone: 'mFaceEyeLidLowerLeft', property: 'scale', axis: 'x', range: [-0.1, 0.2] },
-      { bone: 'mFaceEyeLidLowerLeft', property: 'scale', axis: 'z', range: [-0.1, 0.2] },
-      { bone: 'mFaceEyeLidLowerRight', property: 'scale', axis: 'x', range: [-0.1, 0.2] },
-      { bone: 'mFaceEyeLidLowerRight', property: 'scale', axis: 'z', range: [-0.1, 0.2] },
+      // Scale lids on X (width) and Z (height) with wider range
+      { bone: 'mFaceEyeLidUpperLeft', property: 'scale', axis: 'x', range: [-0.15, 0.3] },
+      { bone: 'mFaceEyeLidUpperLeft', property: 'scale', axis: 'z', range: [-0.15, 0.3] },
+      { bone: 'mFaceEyeLidUpperRight', property: 'scale', axis: 'x', range: [-0.15, 0.3] },
+      { bone: 'mFaceEyeLidUpperRight', property: 'scale', axis: 'z', range: [-0.15, 0.3] },
+      { bone: 'mFaceEyeLidLowerLeft', property: 'scale', axis: 'x', range: [-0.15, 0.3] },
+      { bone: 'mFaceEyeLidLowerLeft', property: 'scale', axis: 'z', range: [-0.15, 0.3] },
+      { bone: 'mFaceEyeLidLowerRight', property: 'scale', axis: 'x', range: [-0.15, 0.3] },
+      { bone: 'mFaceEyeLidLowerRight', property: 'scale', axis: 'z', range: [-0.15, 0.3] },
     ],
   },
   {
@@ -1004,8 +1028,9 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
     category: 'face_eyes',
     defaultValue: 50,
     drivers: [
-      { bone: 'mFaceEyebrowOuterLeft', property: 'position', axis: 'y', range: [-0.004, 0.004] },
-      { bone: 'mFaceEyebrowOuterRight', property: 'position', axis: 'y', range: [-0.004, 0.004] },
+      // Z = up/down
+      { bone: 'mFaceEyebrowOuterLeft', property: 'position', axis: 'z', range: [-0.006, 0.006] },
+      { bone: 'mFaceEyebrowOuterRight', property: 'position', axis: 'z', range: [-0.006, 0.006] },
     ],
   },
   {
@@ -1014,8 +1039,9 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
     category: 'face_eyes',
     defaultValue: 50,
     drivers: [
-      { bone: 'mFaceEyecornerInnerLeft', property: 'position', axis: 'y', range: [-0.004, 0.004] },
-      { bone: 'mFaceEyecornerInnerRight', property: 'position', axis: 'y', range: [-0.004, 0.004] },
+      // Z = up/down
+      { bone: 'mFaceEyecornerInnerLeft', property: 'position', axis: 'z', range: [-0.006, 0.006] },
+      { bone: 'mFaceEyecornerInnerRight', property: 'position', axis: 'z', range: [-0.006, 0.006] },
     ],
   },
   {
@@ -1024,8 +1050,9 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
     category: 'face_eyes',
     defaultValue: 50,
     drivers: [
-      { bone: 'mFaceEyeLidUpperLeft', property: 'position', axis: 'y', range: [0.004, -0.004] },
-      { bone: 'mFaceEyeLidUpperRight', property: 'position', axis: 'y', range: [0.004, -0.004] },
+      // Z = up/down — lid drops down
+      { bone: 'mFaceEyeLidUpperLeft', property: 'position', axis: 'z', range: [0.006, -0.006] },
+      { bone: 'mFaceEyeLidUpperRight', property: 'position', axis: 'z', range: [0.006, -0.006] },
     ],
   },
   {
@@ -1034,10 +1061,10 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
     category: 'face_eyes',
     defaultValue: 25,
     drivers: [
-      { bone: 'mFaceEyeLidLowerLeft', property: 'scale', axis: 'z', range: [-0.1, 0.4] },
-      { bone: 'mFaceEyeLidLowerLeft', property: 'position', axis: 'y', range: [0.001, -0.001] },
-      { bone: 'mFaceEyeLidLowerRight', property: 'scale', axis: 'z', range: [-0.1, 0.4] },
-      { bone: 'mFaceEyeLidLowerRight', property: 'position', axis: 'y', range: [0.001, -0.001] },
+      { bone: 'mFaceEyeLidLowerLeft', property: 'scale', axis: 'z', range: [-0.1, 0.5] },
+      { bone: 'mFaceEyeLidLowerLeft', property: 'position', axis: 'z', range: [0.002, -0.002] },
+      { bone: 'mFaceEyeLidLowerRight', property: 'scale', axis: 'z', range: [-0.1, 0.5] },
+      { bone: 'mFaceEyeLidLowerRight', property: 'position', axis: 'z', range: [0.002, -0.002] },
     ],
   },
   {
@@ -1046,12 +1073,16 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
     category: 'face_eyes',
     defaultValue: 25,
     drivers: [
-      { bone: 'mFaceEyeLidLowerLeft', property: 'scale', axis: 'x', range: [-0.05, 0.1] },
-      { bone: 'mFaceEyeLidLowerLeft', property: 'scale', axis: 'y', range: [-0.05, 0.1] },
-      { bone: 'mFaceEyeLidLowerLeft', property: 'scale', axis: 'z', range: [-0.05, 0.1] },
-      { bone: 'mFaceEyeLidLowerRight', property: 'scale', axis: 'x', range: [-0.05, 0.1] },
-      { bone: 'mFaceEyeLidLowerRight', property: 'scale', axis: 'y', range: [-0.05, 0.1] },
-      { bone: 'mFaceEyeLidLowerRight', property: 'scale', axis: 'z', range: [-0.05, 0.1] },
+      { bone: 'mFaceEyeLidLowerLeft', property: 'scale', axis: 'x', range: [-0.08, 0.15] },
+      { bone: 'mFaceEyeLidLowerLeft', property: 'scale', axis: 'y', range: [-0.08, 0.15] },
+      { bone: 'mFaceEyeLidLowerLeft', property: 'scale', axis: 'z', range: [-0.08, 0.15] },
+      { bone: 'mFaceEyeLidLowerRight', property: 'scale', axis: 'x', range: [-0.08, 0.15] },
+      { bone: 'mFaceEyeLidLowerRight', property: 'scale', axis: 'y', range: [-0.08, 0.15] },
+      { bone: 'mFaceEyeLidLowerRight', property: 'scale', axis: 'z', range: [-0.08, 0.15] },
+      { bone: 'mFaceEyecornerInnerLeft', property: 'scale', axis: 'x', range: [-0.05, 0.1] },
+      { bone: 'mFaceEyecornerInnerLeft', property: 'scale', axis: 'z', range: [-0.05, 0.1] },
+      { bone: 'mFaceEyecornerInnerRight', property: 'scale', axis: 'x', range: [-0.05, 0.1] },
+      { bone: 'mFaceEyecornerInnerRight', property: 'scale', axis: 'z', range: [-0.05, 0.1] },
     ],
   },
   {
@@ -1060,6 +1091,9 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
     category: 'face_eyes',
     defaultValue: 50,
     drivers: [
+      // Eyeball protrusion — Y = forward/back
+      { bone: 'mEyeLeft', property: 'position', axis: 'y', range: [-0.006, 0.008] },
+      { bone: 'mEyeRight', property: 'position', axis: 'y', range: [-0.006, 0.008] },
       { bone: 'mEyeLeft', property: 'scale', axis: 'x', range: [-0.12, 0.15] },
       { bone: 'mEyeLeft', property: 'scale', axis: 'y', range: [-0.12, 0.15] },
       { bone: 'mEyeLeft', property: 'scale', axis: 'z', range: [-0.12, 0.15] },
@@ -1074,12 +1108,13 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
     category: 'face_eyes',
     defaultValue: 50,
     drivers: [
-      { bone: 'mFaceEyebrowOuterLeft', property: 'scale', axis: 'z', range: [-0.15, 0.25] },
-      { bone: 'mFaceEyebrowCenterLeft', property: 'scale', axis: 'z', range: [-0.15, 0.25] },
-      { bone: 'mFaceEyebrowInnerLeft', property: 'scale', axis: 'z', range: [-0.15, 0.25] },
-      { bone: 'mFaceEyebrowOuterRight', property: 'scale', axis: 'z', range: [-0.15, 0.25] },
-      { bone: 'mFaceEyebrowCenterRight', property: 'scale', axis: 'z', range: [-0.15, 0.25] },
-      { bone: 'mFaceEyebrowInnerRight', property: 'scale', axis: 'z', range: [-0.15, 0.25] },
+      // Scale on Y (forward protrusion) for visible brow thickening
+      { bone: 'mFaceEyebrowOuterLeft', property: 'scale', axis: 'y', range: [-0.2, 0.4] },
+      { bone: 'mFaceEyebrowCenterLeft', property: 'scale', axis: 'y', range: [-0.2, 0.4] },
+      { bone: 'mFaceEyebrowInnerLeft', property: 'scale', axis: 'y', range: [-0.2, 0.4] },
+      { bone: 'mFaceEyebrowOuterRight', property: 'scale', axis: 'y', range: [-0.2, 0.4] },
+      { bone: 'mFaceEyebrowCenterRight', property: 'scale', axis: 'y', range: [-0.2, 0.4] },
+      { bone: 'mFaceEyebrowInnerRight', property: 'scale', axis: 'y', range: [-0.2, 0.4] },
     ],
   },
   {
@@ -1088,10 +1123,11 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
     category: 'face_eyes',
     defaultValue: 50,
     drivers: [
-      { bone: 'mFaceEyebrowCenterLeft', property: 'position', axis: 'y', range: [-0.005, 0.005] },
-      { bone: 'mFaceEyebrowCenterRight', property: 'position', axis: 'y', range: [-0.005, 0.005] },
-      { bone: 'mFaceEyebrowInnerLeft', property: 'position', axis: 'y', range: [-0.001, 0.001] },
-      { bone: 'mFaceEyebrowInnerRight', property: 'position', axis: 'y', range: [-0.001, 0.001] },
+      // Z = up/down — center goes up, inner stays lower = arch shape
+      { bone: 'mFaceEyebrowCenterLeft', property: 'position', axis: 'z', range: [-0.005, 0.005] },
+      { bone: 'mFaceEyebrowCenterRight', property: 'position', axis: 'z', range: [-0.005, 0.005] },
+      { bone: 'mFaceEyebrowInnerLeft', property: 'position', axis: 'z', range: [-0.001, 0.001] },
+      { bone: 'mFaceEyebrowInnerRight', property: 'position', axis: 'z', range: [-0.001, 0.001] },
     ],
   },
 
@@ -1122,21 +1158,23 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
   {
     id: 'forehead_height',
     label: 'Forehead Height',
-    category: 'face_mouth',
+    category: 'face_eyes',
     defaultValue: 50,
     drivers: [
-      { bone: 'mFaceForeheadCenter', property: 'scale', axis: 'y', range: [-0.1, 0.1] },
-      { bone: 'mFaceForeheadLeft', property: 'scale', axis: 'y', range: [-0.1, 0.1] },
-      { bone: 'mFaceForeheadRight', property: 'scale', axis: 'y', range: [-0.1, 0.1] },
+      // Scale Z (up/down) for forehead height
+      { bone: 'mFaceForeheadCenter', property: 'scale', axis: 'z', range: [-0.15, 0.15] },
+      { bone: 'mFaceForeheadLeft', property: 'scale', axis: 'z', range: [-0.15, 0.15] },
+      { bone: 'mFaceForeheadRight', property: 'scale', axis: 'z', range: [-0.15, 0.15] },
     ],
   },
   {
     id: 'forehead_slope',
     label: 'Forehead Slope',
-    category: 'face_mouth',
+    category: 'face_eyes',
     defaultValue: 50,
     drivers: [
-      { bone: 'mFaceForeheadCenter', property: 'position', axis: 'y', range: [-0.004, 0.004] },
+      // Y = forward/back slope
+      { bone: 'mFaceForeheadCenter', property: 'position', axis: 'y', range: [-0.006, 0.006] },
     ],
   },
   {
@@ -1220,7 +1258,7 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
   {
     id: 'forehead_angle',
     label: 'Forehead Angle',
-    category: 'face_mouth',
+    category: 'face_eyes',
     defaultValue: 50,
     drivers: [
       { bone: 'mFaceForeheadLeft', property: 'scale', axis: 'z', range: [-0.05, 0.1] },
@@ -1233,7 +1271,7 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
   {
     id: 'brow_size',
     label: 'Brow Size',
-    category: 'face_mouth',
+    category: 'face_eyes',
     defaultValue: 50,
     drivers: [
       { bone: 'mFaceForeheadCenter', property: 'position', axis: 'z', range: [-0.003, 0.007] },
