@@ -426,7 +426,57 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
   },
 
   // =========================================================================
-  // DETAILS (7 params)
+  // LEGS (new ADR-016 Phase 3 params)
+  // =========================================================================
+  {
+    id: 'hip_length',
+    label: 'Hip Length',
+    category: 'legs',
+    defaultValue: 50,
+    drivers: [
+      { bone: 'mPelvis', property: 'scale', axis: 'y', range: [-0.15, 0.15] },
+    ],
+  },
+  {
+    id: 'bow_legs',
+    label: 'Bow Legs',
+    category: 'legs',
+    defaultValue: 50,
+    drivers: [
+      { bone: 'mKneeLeft', property: 'position', axis: 'z', range: [-0.01, 0.01] },
+      { bone: 'mKneeRight', property: 'position', axis: 'z', range: [0.01, -0.01] },
+    ],
+  },
+  {
+    id: 'ankle_thickness',
+    label: 'Ankle Thickness',
+    category: 'legs',
+    defaultValue: 50,
+    drivers: [
+      ...symmetricCV('LOWER_LEG', 'scale', 'x', [-0.06, 0.08]),
+    ],
+  },
+  {
+    id: 'shoe_heels',
+    label: 'Shoe Heels',
+    category: 'legs',
+    defaultValue: 0,
+    drivers: [
+      ...symmetric('mFoot', 'position', 'y', [0, 0.06]),
+    ],
+  },
+  {
+    id: 'toe_thickness',
+    label: 'Toe Thickness',
+    category: 'legs',
+    defaultValue: 50,
+    drivers: [
+      ...symmetricCV('FOOT', 'scale', 'z', [-0.06, 0.08]),
+    ],
+  },
+
+  // =========================================================================
+  // DETAILS (original 7 + new ADR-016 params)
   // =========================================================================
   {
     id: 'butt_size',
@@ -509,8 +559,121 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
     ],
   },
 
+  {
+    id: 'male_package',
+    label: 'Package',
+    category: 'details',
+    defaultValue: 25,
+    hideOnMasculine: false,
+    masculineLabel: 'Package',
+    drivers: [
+      { bone: 'mGroin', property: 'scale', axis: 'x', range: [-0.1, 0.5] },
+      { bone: 'mGroin', property: 'scale', axis: 'y', range: [-0.05, 0.25] },
+      { bone: 'mGroin', property: 'scale', axis: 'z', range: [-0.02, 0.1] },
+    ],
+  },
+
   // =========================================================================
-  // FACE: JAW & CHIN (3 params)
+  // FACE: HEAD SHAPE (new ADR-016 Phase 2 params)
+  // =========================================================================
+  {
+    id: 'egg_head',
+    label: 'Egg Head',
+    category: 'face_structure',
+    defaultValue: 50,
+    essential: true,
+    drivers: [
+      { bone: 'mFaceRoot', property: 'scale', axis: 'x', range: [-0.07, 0.07] },
+      { bone: 'mFaceRoot', property: 'scale', axis: 'y', range: [0.07, -0.07] },
+    ],
+  },
+  {
+    id: 'head_stretch',
+    label: 'Head Stretch',
+    category: 'face_structure',
+    defaultValue: 50,
+    drivers: [
+      { bone: 'mFaceRoot', property: 'scale', axis: 'y', range: [-0.15, 0.15] },
+    ],
+  },
+  {
+    id: 'head_length',
+    label: 'Head Length',
+    category: 'face_structure',
+    defaultValue: 50,
+    essential: true,
+    drivers: [
+      { bone: 'mFaceRoot', property: 'scale', axis: 'z', range: [-0.1, 0.1] },
+    ],
+  },
+  {
+    id: 'squash_stretch_head',
+    label: 'Squash/Stretch Head',
+    category: 'face_structure',
+    defaultValue: 50,
+    drivers: [
+      { bone: 'mFaceRoot', property: 'scale', axis: 'x', range: [0.05, -0.05] },
+      { bone: 'mFaceRoot', property: 'scale', axis: 'y', range: [-0.05, 0.05] },
+      { bone: 'mFaceChin', property: 'position', axis: 'y', range: [0.003, -0.003] },
+    ],
+  },
+  {
+    id: 'face_shear',
+    label: 'Face Shear',
+    category: 'face_structure',
+    defaultValue: 50,
+    drivers: [
+      { bone: 'mFaceRoot', property: 'position', axis: 'x', range: [-0.005, 0.005] },
+    ],
+  },
+  {
+    id: 'cheek_bones',
+    label: 'Cheek Bones',
+    category: 'face_structure',
+    defaultValue: 50,
+    essential: true,
+    drivers: [
+      { bone: 'mFaceCheekUpperLeft', property: 'position', axis: 'y', range: [-0.01, 0.01] },
+      { bone: 'mFaceCheekUpperRight', property: 'position', axis: 'y', range: [-0.01, 0.01] },
+    ],
+  },
+  {
+    id: 'puffy_upper_cheeks',
+    label: 'Puffy Upper Cheeks',
+    category: 'face_structure',
+    defaultValue: 50,
+    drivers: [
+      { bone: 'mFaceCheekUpperLeft', property: 'scale', axis: 'x', range: [-0.15, 0.3] },
+      { bone: 'mFaceCheekUpperLeft', property: 'scale', axis: 'y', range: [-0.1, 0.2] },
+      { bone: 'mFaceCheekUpperLeft', property: 'scale', axis: 'z', range: [-0.1, 0.2] },
+      { bone: 'mFaceCheekUpperRight', property: 'scale', axis: 'x', range: [-0.15, 0.3] },
+      { bone: 'mFaceCheekUpperRight', property: 'scale', axis: 'y', range: [-0.1, 0.2] },
+      { bone: 'mFaceCheekUpperRight', property: 'scale', axis: 'z', range: [-0.1, 0.2] },
+    ],
+  },
+  {
+    id: 'sunken_cheeks',
+    label: 'Sunken Cheeks',
+    category: 'face_structure',
+    defaultValue: 50,
+    drivers: [
+      { bone: 'mFaceCheekLowerLeft', property: 'scale', axis: 'x', range: [0.18, -0.18] },
+      { bone: 'mFaceCheekLowerRight', property: 'scale', axis: 'x', range: [0.18, -0.18] },
+    ],
+  },
+  {
+    id: 'square_jaw',
+    label: 'Square Jaw',
+    category: 'face_structure',
+    defaultValue: 50,
+    drivers: [
+      { bone: 'mFaceJaw', property: 'scale', axis: 'x', range: [-0.15, 0.15] },
+      { bone: 'mFaceJawShaper', property: 'scale', axis: 'x', range: [-0.15, 0.15] },
+    ],
+  },
+
+  // =========================================================================
+  // FACE: JAW & CHIN (original 3 + new ADR-016 params)
   // =========================================================================
   {
     id: 'jaw_width',
@@ -540,8 +703,70 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
     ],
   },
 
+  {
+    id: 'chin_cleft',
+    label: 'Chin Cleft',
+    category: 'face_structure',
+    defaultValue: 50,
+    drivers: [
+      { bone: 'mFaceChin', property: 'position', axis: 'y', range: [0.005, -0.005] },
+    ],
+  },
+  {
+    id: 'double_chin',
+    label: 'Double Chin',
+    category: 'face_structure',
+    defaultValue: 25,
+    drivers: [
+      { bone: 'mFaceJawShaper', property: 'scale', axis: 'x', range: [-0.06, 0.25] },
+      { bone: 'mFaceJawShaper', property: 'scale', axis: 'z', range: [-0.06, 0.5] },
+    ],
+  },
+  {
+    id: 'jaw_jut',
+    label: 'Jaw Jut',
+    category: 'face_structure',
+    defaultValue: 50,
+    drivers: [
+      { bone: 'mFaceChin', property: 'position', axis: 'z', range: [-0.01, 0.01] },
+      { bone: 'mFaceTeethLower', property: 'position', axis: 'z', range: [-0.008, 0.008] },
+    ],
+  },
+  {
+    id: 'weak_chin',
+    label: 'Weak Chin',
+    category: 'face_structure',
+    defaultValue: 50,
+    drivers: [
+      { bone: 'mFaceChin', property: 'position', axis: 'z', range: [0.015, -0.015] },
+      { bone: 'mFaceChin', property: 'position', axis: 'y', range: [-0.005, 0.005] },
+    ],
+  },
+  {
+    id: 'ear_angle',
+    label: 'Ears Out',
+    category: 'face_structure',
+    defaultValue: 50,
+    drivers: [
+      { bone: 'mFaceEar1Left', property: 'position', axis: 'x', range: [0.005, -0.005] },
+      { bone: 'mFaceEar1Right', property: 'position', axis: 'x', range: [-0.005, 0.005] },
+    ],
+  },
+  {
+    id: 'pointy_ears',
+    label: 'Pointy Ears',
+    category: 'face_structure',
+    defaultValue: 25,
+    drivers: [
+      { bone: 'mFaceEar2Left', property: 'position', axis: 'y', range: [0, 0.02] },
+      { bone: 'mFaceEar2Left', property: 'position', axis: 'z', range: [0, -0.015] },
+      { bone: 'mFaceEar2Right', property: 'position', axis: 'y', range: [0, 0.02] },
+      { bone: 'mFaceEar2Right', property: 'position', axis: 'z', range: [0, -0.015] },
+    ],
+  },
+
   // =========================================================================
-  // FACE: NOSE (3 params)
+  // FACE: NOSE (original 3 + new ADR-016 params)
   // =========================================================================
   {
     id: 'nose_width',
@@ -572,8 +797,94 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
     ],
   },
 
+  {
+    id: 'nose_size',
+    label: 'Nose Size',
+    category: 'face_nose',
+    defaultValue: 50,
+    essential: true,
+    drivers: [
+      { bone: 'mFaceNoseCenter', property: 'scale', axis: 'x', range: [-0.2, 0.4] },
+      { bone: 'mFaceNoseCenter', property: 'scale', axis: 'y', range: [-0.15, 0.3] },
+      { bone: 'mFaceNoseCenter', property: 'scale', axis: 'z', range: [-0.1, 0.2] },
+      { bone: 'mFaceNoseLeft', property: 'scale', axis: 'y', range: [-0.1, 0.2] },
+      { bone: 'mFaceNoseRight', property: 'scale', axis: 'y', range: [-0.1, 0.2] },
+      { bone: 'mFaceNoseBridge', property: 'scale', axis: 'x', range: [-0.05, 0.1] },
+    ],
+  },
+  {
+    id: 'nostril_width',
+    label: 'Nostril Width',
+    category: 'face_nose',
+    defaultValue: 50,
+    drivers: [
+      { bone: 'mFaceNoseLeft', property: 'position', axis: 'x', range: [0.006, -0.006] },
+      { bone: 'mFaceNoseRight', property: 'position', axis: 'x', range: [-0.006, 0.006] },
+    ],
+  },
+  {
+    id: 'nose_tip_angle',
+    label: 'Upturned Nose',
+    category: 'face_nose',
+    defaultValue: 50,
+    drivers: [
+      { bone: 'mFaceNoseBase', property: 'position', axis: 'y', range: [-0.003, 0.003] },
+      { bone: 'mFaceNoseCenter', property: 'position', axis: 'z', range: [-0.004, 0.004] },
+    ],
+  },
+  {
+    id: 'nose_bridge_width',
+    label: 'Nose Bridge Width',
+    category: 'face_nose',
+    defaultValue: 50,
+    drivers: [
+      { bone: 'mFaceNoseBridge', property: 'scale', axis: 'x', range: [-0.15, 0.3] },
+    ],
+  },
+  {
+    id: 'nose_thickness',
+    label: 'Nose Thickness',
+    category: 'face_nose',
+    defaultValue: 50,
+    drivers: [
+      { bone: 'mFaceNoseBridge', property: 'scale', axis: 'z', range: [-0.2, 0.35] },
+      { bone: 'mFaceNoseBridge', property: 'position', axis: 'z', range: [-0.004, 0.004] },
+    ],
+  },
+  {
+    id: 'crooked_nose',
+    label: 'Crooked Nose',
+    category: 'face_nose',
+    defaultValue: 50,
+    drivers: [
+      { bone: 'mFaceNoseCenter', property: 'position', axis: 'x', range: [-0.006, 0.006] },
+      { bone: 'mFaceNoseBase', property: 'position', axis: 'x', range: [-0.005, 0.005] },
+      { bone: 'mFaceNoseBridge', property: 'position', axis: 'x', range: [-0.004, 0.004] },
+    ],
+  },
+  {
+    id: 'bulbous_nose',
+    label: 'Bulbous Nose',
+    category: 'face_nose',
+    defaultValue: 50,
+    drivers: [
+      { bone: 'mFaceNoseCenter', property: 'scale', axis: 'x', range: [-0.05, 0.15] },
+      { bone: 'mFaceNoseCenter', property: 'scale', axis: 'y', range: [-0.05, 0.2] },
+      { bone: 'mFaceNoseCenter', property: 'scale', axis: 'z', range: [-0.05, 0.15] },
+    ],
+  },
+  {
+    id: 'low_septum',
+    label: 'Low Septum',
+    category: 'face_nose',
+    defaultValue: 50,
+    drivers: [
+      { bone: 'mFaceNoseBase', property: 'position', axis: 'y', range: [0.004, -0.004] },
+    ],
+  },
+
   // =========================================================================
-  // FACE: EYES & BROWS (5 params)
+  // FACE: EYES & BROWS (original 5 + new ADR-016 params)
   // =========================================================================
   {
     id: 'eye_spacing',
@@ -633,8 +944,122 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
     ],
   },
 
+  {
+    id: 'wide_eyes',
+    label: 'Wide Eyes',
+    category: 'face_eyes',
+    defaultValue: 50,
+    essential: true,
+    drivers: [
+      { bone: 'mFaceEyeLidUpperLeft', property: 'scale', axis: 'x', range: [-0.1, 0.2] },
+      { bone: 'mFaceEyeLidUpperLeft', property: 'scale', axis: 'z', range: [-0.1, 0.2] },
+      { bone: 'mFaceEyeLidUpperRight', property: 'scale', axis: 'x', range: [-0.1, 0.2] },
+      { bone: 'mFaceEyeLidUpperRight', property: 'scale', axis: 'z', range: [-0.1, 0.2] },
+      { bone: 'mFaceEyeLidLowerLeft', property: 'scale', axis: 'x', range: [-0.1, 0.2] },
+      { bone: 'mFaceEyeLidLowerLeft', property: 'scale', axis: 'z', range: [-0.1, 0.2] },
+      { bone: 'mFaceEyeLidLowerRight', property: 'scale', axis: 'x', range: [-0.1, 0.2] },
+      { bone: 'mFaceEyeLidLowerRight', property: 'scale', axis: 'z', range: [-0.1, 0.2] },
+    ],
+  },
+  {
+    id: 'eyelid_corner_up',
+    label: 'Eyelid Corner Up',
+    category: 'face_eyes',
+    defaultValue: 50,
+    drivers: [
+      { bone: 'mFaceEyebrowOuterLeft', property: 'position', axis: 'y', range: [-0.004, 0.004] },
+      { bone: 'mFaceEyebrowOuterRight', property: 'position', axis: 'y', range: [-0.004, 0.004] },
+    ],
+  },
+  {
+    id: 'eyelid_inner_corner_up',
+    label: 'Inner Corner Up',
+    category: 'face_eyes',
+    defaultValue: 50,
+    drivers: [
+      { bone: 'mFaceEyecornerInnerLeft', property: 'position', axis: 'y', range: [-0.004, 0.004] },
+      { bone: 'mFaceEyecornerInnerRight', property: 'position', axis: 'y', range: [-0.004, 0.004] },
+    ],
+  },
+  {
+    id: 'upper_eyelid_fold',
+    label: 'Upper Eyelid Fold',
+    category: 'face_eyes',
+    defaultValue: 50,
+    drivers: [
+      { bone: 'mFaceEyeLidUpperLeft', property: 'position', axis: 'y', range: [0.004, -0.004] },
+      { bone: 'mFaceEyeLidUpperRight', property: 'position', axis: 'y', range: [0.004, -0.004] },
+    ],
+  },
+  {
+    id: 'baggy_eyes',
+    label: 'Baggy Eyes',
+    category: 'face_eyes',
+    defaultValue: 25,
+    drivers: [
+      { bone: 'mFaceEyeLidLowerLeft', property: 'scale', axis: 'z', range: [-0.1, 0.4] },
+      { bone: 'mFaceEyeLidLowerLeft', property: 'position', axis: 'y', range: [0.001, -0.001] },
+      { bone: 'mFaceEyeLidLowerRight', property: 'scale', axis: 'z', range: [-0.1, 0.4] },
+      { bone: 'mFaceEyeLidLowerRight', property: 'position', axis: 'y', range: [0.001, -0.001] },
+    ],
+  },
+  {
+    id: 'puffy_lower_lids',
+    label: 'Puffy Lower Lids',
+    category: 'face_eyes',
+    defaultValue: 25,
+    drivers: [
+      { bone: 'mFaceEyeLidLowerLeft', property: 'scale', axis: 'x', range: [-0.05, 0.1] },
+      { bone: 'mFaceEyeLidLowerLeft', property: 'scale', axis: 'y', range: [-0.05, 0.1] },
+      { bone: 'mFaceEyeLidLowerLeft', property: 'scale', axis: 'z', range: [-0.05, 0.1] },
+      { bone: 'mFaceEyeLidLowerRight', property: 'scale', axis: 'x', range: [-0.05, 0.1] },
+      { bone: 'mFaceEyeLidLowerRight', property: 'scale', axis: 'y', range: [-0.05, 0.1] },
+      { bone: 'mFaceEyeLidLowerRight', property: 'scale', axis: 'z', range: [-0.05, 0.1] },
+    ],
+  },
+  {
+    id: 'pop_eye',
+    label: 'Pop Eye',
+    category: 'face_eyes',
+    defaultValue: 50,
+    drivers: [
+      { bone: 'mEyeLeft', property: 'scale', axis: 'x', range: [-0.12, 0.15] },
+      { bone: 'mEyeLeft', property: 'scale', axis: 'y', range: [-0.12, 0.15] },
+      { bone: 'mEyeLeft', property: 'scale', axis: 'z', range: [-0.12, 0.15] },
+      { bone: 'mEyeRight', property: 'scale', axis: 'x', range: [-0.12, 0.15] },
+      { bone: 'mEyeRight', property: 'scale', axis: 'y', range: [-0.12, 0.15] },
+      { bone: 'mEyeRight', property: 'scale', axis: 'z', range: [-0.12, 0.15] },
+    ],
+  },
+  {
+    id: 'eyebrow_size',
+    label: 'Eyebrow Size',
+    category: 'face_eyes',
+    defaultValue: 50,
+    drivers: [
+      { bone: 'mFaceEyebrowOuterLeft', property: 'scale', axis: 'z', range: [-0.15, 0.25] },
+      { bone: 'mFaceEyebrowCenterLeft', property: 'scale', axis: 'z', range: [-0.15, 0.25] },
+      { bone: 'mFaceEyebrowInnerLeft', property: 'scale', axis: 'z', range: [-0.15, 0.25] },
+      { bone: 'mFaceEyebrowOuterRight', property: 'scale', axis: 'z', range: [-0.15, 0.25] },
+      { bone: 'mFaceEyebrowCenterRight', property: 'scale', axis: 'z', range: [-0.15, 0.25] },
+      { bone: 'mFaceEyebrowInnerRight', property: 'scale', axis: 'z', range: [-0.15, 0.25] },
+    ],
+  },
+  {
+    id: 'brow_arch',
+    label: 'Arched Eyebrows',
+    category: 'face_eyes',
+    defaultValue: 50,
+    drivers: [
+      { bone: 'mFaceEyebrowCenterLeft', property: 'position', axis: 'y', range: [-0.005, 0.005] },
+      { bone: 'mFaceEyebrowCenterRight', property: 'position', axis: 'y', range: [-0.005, 0.005] },
+      { bone: 'mFaceEyebrowInnerLeft', property: 'position', axis: 'y', range: [-0.001, 0.001] },
+      { bone: 'mFaceEyebrowInnerRight', property: 'position', axis: 'y', range: [-0.001, 0.001] },
+    ],
+  },
+
   // =========================================================================
-  // FACE: MOUTH & FOREHEAD (4 params)
+  // FACE: MOUTH & FOREHEAD (original 4 + new ADR-016 params)
   // =========================================================================
   {
     id: 'lip_width',
@@ -675,6 +1100,114 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
     defaultValue: 50,
     drivers: [
       { bone: 'mFaceForeheadCenter', property: 'position', axis: 'y', range: [-0.004, 0.004] },
+    ],
+  },
+  {
+    id: 'lip_fullness_upper',
+    label: 'Upper Lip Fullness',
+    category: 'face_mouth',
+    defaultValue: 50,
+    essential: true,
+    drivers: [
+      { bone: 'mFaceLipUpperLeft', property: 'scale', axis: 'z', range: [-0.15, 0.45] },
+      { bone: 'mFaceLipUpperCenter', property: 'scale', axis: 'z', range: [-0.1, 0.3] },
+      { bone: 'mFaceLipUpperRight', property: 'scale', axis: 'z', range: [-0.15, 0.45] },
+      { bone: 'mFaceLipUpperLeft', property: 'position', axis: 'z', range: [-0.003, 0.006] },
+      { bone: 'mFaceLipUpperCenter', property: 'position', axis: 'z', range: [-0.002, 0.003] },
+      { bone: 'mFaceLipUpperRight', property: 'position', axis: 'z', range: [-0.003, 0.006] },
+    ],
+  },
+  {
+    id: 'lip_fullness_lower',
+    label: 'Lower Lip Fullness',
+    category: 'face_mouth',
+    defaultValue: 50,
+    essential: true,
+    drivers: [
+      { bone: 'mFaceLipLowerLeft', property: 'scale', axis: 'z', range: [-0.1, 0.25] },
+      { bone: 'mFaceLipLowerCenter', property: 'scale', axis: 'z', range: [-0.1, 0.25] },
+      { bone: 'mFaceLipLowerRight', property: 'scale', axis: 'z', range: [-0.1, 0.25] },
+      { bone: 'mFaceLipLowerLeft', property: 'position', axis: 'z', range: [0.003, -0.004] },
+      { bone: 'mFaceLipLowerCenter', property: 'position', axis: 'z', range: [0.003, -0.004] },
+      { bone: 'mFaceLipLowerRight', property: 'position', axis: 'z', range: [0.003, -0.004] },
+    ],
+  },
+  {
+    id: 'lip_thickness',
+    label: 'Lip Thickness',
+    category: 'face_mouth',
+    defaultValue: 50,
+    drivers: [
+      { bone: 'mFaceLipUpperLeft', property: 'scale', axis: 'z', range: [-0.2, 0.3] },
+      { bone: 'mFaceLipUpperCenter', property: 'scale', axis: 'z', range: [-0.2, 0.3] },
+      { bone: 'mFaceLipUpperRight', property: 'scale', axis: 'z', range: [-0.2, 0.3] },
+      { bone: 'mFaceLipLowerLeft', property: 'scale', axis: 'z', range: [-0.2, 0.3] },
+      { bone: 'mFaceLipLowerCenter', property: 'scale', axis: 'z', range: [-0.2, 0.3] },
+      { bone: 'mFaceLipLowerRight', property: 'scale', axis: 'z', range: [-0.2, 0.3] },
+    ],
+  },
+  {
+    id: 'lip_cleft',
+    label: 'Lip Cleft',
+    category: 'face_mouth',
+    defaultValue: 50,
+    drivers: [
+      { bone: 'mFaceLipUpperLeft', property: 'position', axis: 'z', range: [-0.002, 0.003] },
+      { bone: 'mFaceLipUpperCenter', property: 'position', axis: 'z', range: [0.001, -0.001] },
+      { bone: 'mFaceLipUpperRight', property: 'position', axis: 'z', range: [-0.002, 0.003] },
+    ],
+  },
+  {
+    id: 'smile_frown',
+    label: 'Smile / Frown',
+    category: 'face_mouth',
+    defaultValue: 50,
+    drivers: [
+      { bone: 'mFaceLipCornerLeft', property: 'position', axis: 'y', range: [-0.004, 0.004] },
+      { bone: 'mFaceLipCornerRight', property: 'position', axis: 'y', range: [-0.004, 0.004] },
+      { bone: 'mFaceLipCornerLeft', property: 'position', axis: 'x', range: [-0.002, 0.003] },
+      { bone: 'mFaceLipCornerRight', property: 'position', axis: 'x', range: [0.002, -0.003] },
+    ],
+  },
+  {
+    id: 'shift_mouth',
+    label: 'Shift Mouth',
+    category: 'face_mouth',
+    defaultValue: 50,
+    drivers: [
+      { bone: 'mFaceTeethUpper', property: 'position', axis: 'x', range: [-0.006, 0.006] },
+      { bone: 'mFaceTeethLower', property: 'position', axis: 'x', range: [-0.006, 0.006] },
+      { bone: 'mFaceNoseBase', property: 'position', axis: 'x', range: [-0.003, 0.003] },
+    ],
+  },
+  {
+    id: 'forehead_angle',
+    label: 'Forehead Angle',
+    category: 'face_mouth',
+    defaultValue: 50,
+    drivers: [
+      { bone: 'mFaceForeheadLeft', property: 'scale', axis: 'z', range: [-0.05, 0.1] },
+      { bone: 'mFaceForeheadCenter', property: 'scale', axis: 'z', range: [-0.05, 0.1] },
+      { bone: 'mFaceForeheadRight', property: 'scale', axis: 'z', range: [-0.05, 0.1] },
+      { bone: 'mFaceForeheadLeft', property: 'position', axis: 'z', range: [-0.01, 0.01] },
+      { bone: 'mFaceForeheadRight', property: 'position', axis: 'z', range: [-0.01, 0.01] },
+    ],
+  },
+  {
+    id: 'brow_size',
+    label: 'Brow Size',
+    category: 'face_mouth',
+    defaultValue: 50,
+    drivers: [
+      { bone: 'mFaceForeheadCenter', property: 'position', axis: 'z', range: [-0.003, 0.007] },
+      { bone: 'mFaceEyebrowInnerLeft', property: 'scale', axis: 'x', range: [-0.05, 0.1] },
+      { bone: 'mFaceEyebrowInnerLeft', property: 'position', axis: 'z', range: [-0.002, 0.004] },
+      { bone: 'mFaceEyebrowInnerRight', property: 'scale', axis: 'x', range: [-0.05, 0.1] },
+      { bone: 'mFaceEyebrowInnerRight', property: 'position', axis: 'z', range: [-0.002, 0.004] },
+      { bone: 'mFaceEyebrowCenterLeft', property: 'scale', axis: 'x', range: [-0.05, 0.1] },
+      { bone: 'mFaceEyebrowCenterLeft', property: 'position', axis: 'z', range: [-0.002, 0.004] },
+      { bone: 'mFaceEyebrowCenterRight', property: 'scale', axis: 'x', range: [-0.05, 0.1] },
+      { bone: 'mFaceEyebrowCenterRight', property: 'position', axis: 'z', range: [-0.002, 0.004] },
     ],
   },
 ];
