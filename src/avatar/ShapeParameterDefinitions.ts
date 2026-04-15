@@ -927,8 +927,9 @@ export const SHAPE_PARAMETERS: ShapeParameterDef[] = [
     essential: true,
     drivers: [
       // mEyeLeft/Right have 145 verts each — use these, not mFaceEyeAlt (0 verts)
-      { bone: 'mEyeLeft', property: 'position', axis: 'x', range: [-0.005, 0.005] },
-      { bone: 'mEyeRight', property: 'position', axis: 'x', range: [0.005, -0.005] },
+      // Eyeball range reduced vs lid/corner bones to prevent clipping through face
+      { bone: 'mEyeLeft', property: 'position', axis: 'x', range: [-0.003, 0.003] },
+      { bone: 'mEyeRight', property: 'position', axis: 'x', range: [0.003, -0.003] },
       { bone: 'mFaceEyeLidUpperLeft', property: 'position', axis: 'x', range: [-0.005, 0.005] },
       { bone: 'mFaceEyeLidUpperRight', property: 'position', axis: 'x', range: [0.005, -0.005] },
       { bone: 'mFaceEyeLidLowerLeft', property: 'position', axis: 'x', range: [-0.005, 0.005] },
