@@ -1,3 +1,11 @@
+/**
+ * DressingRoomCamera — Orbit camera with region-based auto-focus for avatar editing.
+ * Depends on: Babylon.js ArcRotateCamera, Animation system
+ * Depended on by: AvatarLifecycle (init + model focus), BodyTab (category expand → focusOnRegion)
+ *
+ * focusOnRegion() animates camera to head/torso/legs/full based on which shape category
+ * the user is editing. Animation swap (idle ↔ head shake) is handled by BodyTab, not here.
+ */
 import { Scene, ArcRotateCamera, Vector3, Animation, EasingFunction, CubicEase } from '@babylonjs/core';
 import type { TransformNode } from '@babylonjs/core';
 

@@ -1,3 +1,17 @@
+/**
+ * ShapeParameterDriver — Runtime engine for OpenSim shape parameters.
+ * Depends on: Babylon.js Skeleton/TransformNode, ShapeParameterDefinitions (param data)
+ * Depended on by: ShapeSliderPanel (UI), ManifestSerializer (outfit save/load),
+ *   ShapeStore (shape persistence), BodyTab (gender switching)
+ *
+ * Maps slider values (0–100) to bone scale/position deltas using the SL formula:
+ *   bone.scale = base(1,1,1) + SUM(param_value * delta_scale)
+ *   bone.position = rest_position + SUM(param_value * delta_position)
+ *
+ * Symmetry split system: symmetric params (those with Left/Right or L_/R_ bone pairs)
+ * can be split into independent L/R values for asymmetric editing. Split state lives
+ * in-memory only — serialization (ShapeStore, ManifestSerializer) saves unified values.
+ */
 import type { Skeleton, TransformNode } from '@babylonjs/core';
 import { Vector3 } from '@babylonjs/core';
 import {
@@ -284,12 +298,18 @@ function addToAxis(vec: Vector3, axis: 'x' | 'y' | 'z', value: number): void {
   else vec.z += value;
 }
 
-/** Detect if a bone name belongs to the left side */
+/**
+ * Bone-side detection for symmetry splitting.
+ * Two naming conventions in the Bento skeleton:
+ *   - Animation bones: suffix 'Left'/'Right' (e.g., mEyeLeft, mFaceEyebrowOuterRight)
+ *   - CV (Collision Volume) bones: prefix 'L_'/'R_' (e.g., L_UPPER_ARM, R_FOOT)
+ * Bones matching neither pattern are center bones (mFaceRoot, BELLY, mChest).
+ * When a param is split, center bones use the average of L/R values.
+ */
 function isLeftBone(name: string): boolean {
   return name.endsWith('Left') || name.startsWith('L_');
 }
 
-/** Detect if a bone name belongs to the right side */
 function isRightBone(name: string): boolean {
   return name.endsWith('Right') || name.startsWith('R_');
 }

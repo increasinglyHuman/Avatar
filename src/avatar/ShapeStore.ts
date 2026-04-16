@@ -1,3 +1,11 @@
+/**
+ * ShapeStore — Persistence layer for saved shape presets.
+ * Depends on: ShapeParameterDefinitions (param metadata), ShapeParameterDriver (capture/apply)
+ * Depended on by: ShapeSliderPanel (gallery UI), BodyTab (wiring), AvatarLifecycle (init)
+ *
+ * Phase 1: localStorage only. Phase 2+: NEXUS inventory sync (see docs/NEXUS-INTEGRATION-SPEC.md).
+ * SavedShape schema matches NEXUS inventory_items.properties JSONB format for zero-conversion sync.
+ */
 import { SHAPE_PARAMETERS } from './ShapeParameterDefinitions.js';
 import type { ShapeParameterDriver } from './ShapeParameterDriver.js';
 

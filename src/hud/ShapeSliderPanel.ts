@@ -1,3 +1,13 @@
+/**
+ * ShapeSliderPanel — Progressive disclosure UI for 103 shape parameters.
+ * Depends on: ShapeParameterDriver (read/write values), ShapeParameterDefinitions (param metadata),
+ *   ShapeStore (save/load shapes)
+ * Depended on by: BodyTab (hosts this panel, wires camera focus + animation swap)
+ *
+ * Features: Simple/Detail mode toggle, search, per-category reset, modified indicators,
+ * symmetry L/R unlink (Detail mode), shape gallery (save/load/delete).
+ * See ADR-017 for design rationale.
+ */
 import type { ShapeParameterDriver } from '../avatar/ShapeParameterDriver.js';
 import {
   SHAPE_PARAMETERS,
