@@ -343,8 +343,8 @@ This is what Avatar registers as its contract with NEXUS. It follows the NEXUS m
   },
 
   "auth": {
-    "mechanism": "JWT via postMessage from World, or URL fragment for direct launch",
-    "session": "Socket.IO connection with user_register event (same as World client)",
+    "mechanism": "OAuth UUID via postMessage from World",
+    "session": "Socket.IO connection + user_register event with { username: userId } (same as World client)",
     "fallback": "Standalone mode — localStorage only, no NEXUS connection"
   },
 
@@ -372,29 +372,28 @@ This is what Avatar registers as its contract with NEXUS. It follows the NEXUS m
 
 ---
 
-## 6. Auth Bridge — JWT Handoff
+## 6. Auth Bridge — OAuth UUID via postMessage
 
-Avatar currently runs standalone. To connect to NEXUS, it needs the user's JWT.
+Avatar currently runs standalone. To connect to NEXUS, it needs the user's OAuth UUID.
 
-### Preferred mechanism: postMessage
+**No JWT infrastructure needed.** NEXUS auth is session-based — the `user_register` socket event creates a session from an OAuth UUID. This matches the existing World client pattern and works today without server changes. The `user_register` handler already supports multiple simultaneous connections from the same userId.
+
+### Connection flow
 
 ```
 World shelf → opens Avatar (iframe or new tab)
-  → World sends postMessage: { type: 'auth', jwt: '...', userId: '...' }
-  → Avatar connects to NEXUS Socket.IO with jwt in handshake auth
-  → Avatar emits 'user_register' with { userId, username } (same as World client)
+  → World sends postMessage: { type: 'auth', userId: 'oauth-uuid', username: 'display-name' }
+  → Avatar connects Socket.IO to wss://poqpoq.com/nexus (port 3020)
+  → Avatar emits 'user_register' with { username: userId } (same as World client)
+  → Session created — all socket events now authenticated
   → Avatar emits 'inventory_sync' to fetch user's items
   → On save: Avatar emits 'inventory_action' with upsert_bodypart/upsert_clothing
   → On close: Avatar sends postMessage to World: { type: 'appearance_updated' }
 ```
 
-### Fallback: URL fragment
-
-For direct-link launches (e.g., `https://poqpoq.com/avatar/#jwt=...`), Avatar reads JWT from the fragment. Fragment is not sent to server (safe), and cleared from URL after reading.
-
 ### Standalone mode
 
-When no JWT is available, Avatar operates in offline mode:
+When no userId is available (direct navigation to `/avatar/`), Avatar operates in offline mode:
 - All saves go to localStorage (existing ShapeStore)
 - No NEXUS connection attempted
 - Items sync to NEXUS on next authenticated session (reconciliation TBD)
@@ -403,12 +402,12 @@ When no JWT is available, Avatar operates in offline mode:
 
 ## 7. Required NEXUS/World Changes (Checklist)
 
-### Inventory Module (`InventoryModule.js`)
+### Inventory Module (`InventoryModule.js`) — DONE
 
-- [ ] Add `upsert_bodypart` action case (follows `upsert_script` pattern)
-- [ ] Add `upsert_clothing` action case (same pattern)
-- [ ] Add `wear_exclusive` action case (unset others of same subtype, then set)
-- [ ] Update manifest.json to list new actions and Avatar as a client
+- [x] Add `upsert_bodypart` action case — **deployed v1.1.0, commit 3b7101a**
+- [x] Add `upsert_clothing` action case — **deployed**
+- [x] Add `wear_exclusive` action case — **deployed**
+- [x] Update manifest.json to list new actions and Avatar as a client
 
 ### Inventory Types (`World/src/inventory/InventoryTypes.ts`)
 
@@ -421,14 +420,13 @@ When no JWT is available, Avatar operates in offline mode:
 - [ ] Add to `grant_freebie_inventory()` in DatabaseManager — seeded as system-owned items
 - [ ] Starter shapes: Default Female, Default Male, Athletic, Curvy, Slim, Heavy
 
-### Texture Upload
+### Texture Upload — RESOLVED
 
-- [ ] Verify `/nexus/assets/images/upload` accepts `asset_subtype: 'skin_head' | 'skin_upper' | 'skin_lower' | 'clothing_upper' | 'clothing_lower'`
-- [ ] If subtype allow-list exists, update it
+- [x] No allow-list changes needed. Use `asset_type: 'texture'`, pass `asset_subtype` in body (stored, not validated)
 
-### CORS
+### CORS — NO ACTION NEEDED
 
-- [ ] No change needed — Avatar served from `https://poqpoq.com/avatar/` (same origin)
+- [x] Same origin (`https://poqpoq.com/avatar/`)
 
 ---
 
@@ -454,17 +452,19 @@ When no JWT is available, Avatar operates in offline mode:
 
 ---
 
-## 9. Open Questions for World Team
+## 9. Resolved Questions (World Team Answers — April 15, 2026)
 
-1. ~~**Does a `create` action exist?**~~ **Answered:** No generic create, but `upsert_script` uses `db.createInventoryItem()`. We propose `upsert_bodypart` and `upsert_clothing` following the same pattern. Acceptable?
+All questions resolved. Actions deployed in inventory module v1.1.0 (commit 3b7101a).
 
-2. **Texture upload subtypes:** Does `/nexus/assets/images/upload` need an allow-list update for `skin_head`, `skin_upper`, `skin_lower`, `clothing_upper`, `clothing_lower`?
+1. **Create action:** `upsert_bodypart` and `upsert_clothing` are live in production. Pass `itemId: null` to create, UUID to update. Follows `upsert_script` pattern.
 
-3. **Outfit folder creation:** Can `inventory_action` create folders (`folder_type='outfit'`), or does that need a new action? (Needed for Phase 3 outfit composition.)
+2. **Texture upload subtypes:** No changes needed. Use `asset_type: 'texture'` for all skin/clothing textures. The `asset_subtype` (e.g., `skin_head`) is passed in the request body and stored — not validated server-side.
 
-4. **Inventory links CRUD:** The `inventory_links` table exists in schema — is link create/delete exposed via socket events? (Needed for Phase 3.)
+3. **Outfit folder creation:** Needs new actions (Phase 3, not blocking Phase 2). Will add: `create_folder` (folder_type='outfit'), `create_link` (inventory_link), `delete_link`. Straightforward additions to inventory_action.
 
-5. **Auth handoff:** Is postMessage the preferred mechanism for JWT transfer? Or does the team prefer a shared httpOnly cookie approach?
+4. **Inventory links CRUD:** Not yet exposed via socket events. Phase 3 work, same as Q3. The `inventory_links` table schema is ready (id, folder_id, target_item_id, link_name, created_at).
+
+5. **Auth handoff:** OAuth UUID via postMessage — **no JWT needed**. Avatar connects Socket.IO, emits `user_register` with `{ username: userId }`. Session created, all events authenticated. `user_register` already supports multiple simultaneous connections from same userId.
 
 ---
 
