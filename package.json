@@ -18,7 +18,8 @@
   "dependencies": {
     "@babylonjs/core": "^8.49.3",
     "@babylonjs/loaders": "^8.49.3",
-    "@babylonjs/serializers": "^8.49.3"
+    "@babylonjs/serializers": "^8.49.3",
+    "socket.io-client": "^4.8.3"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",

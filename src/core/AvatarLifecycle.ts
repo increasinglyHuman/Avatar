@@ -9,6 +9,7 @@ import { Sidebar } from '../hud/Sidebar.js';
 import { OpenSimLoader } from '../avatar/OpenSimLoader.js';
 import { ShapeParameterDriver } from '../avatar/ShapeParameterDriver.js';
 import { ShapeStore } from '../avatar/ShapeStore.js';
+import { NexusInventoryAdapter } from '../nexus/NexusInventoryAdapter.js';
 import { SkinMaterialManager } from '../avatar/SkinMaterialManager.js';
 import { OpenSimClothingManager } from '../avatar/OpenSimClothingManager.js';
 import { TextureCompositor } from '../avatar/TextureCompositor.js';
@@ -55,6 +56,8 @@ export class AvatarLifecycle {
   private breathing: BreathingDriver | null = null;
   private blink: BlinkDriver | null = null;
   private springBones: SpringBoneSystem | null = null;
+  private nexusAdapter: NexusInventoryAdapter | null = null;
+  private shapeStore: ShapeStore | null = null;
 
   private container: HTMLElement;
   private canvas: HTMLCanvasElement;
@@ -149,7 +152,18 @@ export class AvatarLifecycle {
         this.sidebar.setVisible(false);
       }
       this.sidebar.connectShapeDriver(this.shapeDriver);
-      this.sidebar.connectShapeStore(new ShapeStore());
+      this.shapeStore = new ShapeStore();
+      this.sidebar.connectShapeStore(this.shapeStore);
+
+      // NEXUS inventory adapter — connects when auth arrives via postMessage
+      this.nexusAdapter = new NexusInventoryAdapter();
+      this.shapeStore.connectNexus(this.nexusAdapter);
+      // Refresh gallery when NEXUS shapes arrive
+      this.shapeStore.onChanged(() => {
+        // ShapeSliderPanel will re-read from store on next refreshGallery call
+        // The panel's gallery is already wired to store.loadAll()
+      });
+      this.setupNexusAuth();
       this.sidebar.connectSkinManager(this.skinManager);
       this.sidebar.connectWardrobe(this.catalog, this.clothingManager, this.alphaMaskManager);
       this.sidebar.connectOutfits(
@@ -355,6 +369,24 @@ export class AvatarLifecycle {
     return this.opensimStructure;
   }
 
+  /**
+   * Listen for auth credentials from World via postMessage.
+   * When received, connect NEXUS adapter → triggers inventory sync → shapes merge into ShapeStore.
+   */
+  private setupNexusAuth(): void {
+    if (!this.bridge || !this.nexusAdapter) return;
+
+    this.bridge.onAuth(async (credentials) => {
+      console.log(`[Avatar] Auth received for ${credentials.userId}, connecting to NEXUS...`);
+      const connected = await this.nexusAdapter!.connect(credentials.userId, credentials.username);
+      if (connected) {
+        console.log('[Avatar] NEXUS connected — inventory will sync automatically');
+      } else {
+        console.warn('[Avatar] NEXUS connection failed — continuing in offline mode');
+      }
+    });
+  }
+
   private dumpSceneState(): void {
     const scene = this.avatarEngine?.getScene();
     if (!scene) return;
@@ -478,6 +510,9 @@ export class AvatarLifecycle {
     this.blink = null;
     this.springBones?.dispose();
     this.springBones = null;
+    this.nexusAdapter?.dispose();
+    this.nexusAdapter = null;
+    this.shapeStore = null;
     this.sidebar?.dispose();
 
     for (const mesh of this.modelMeshes) {

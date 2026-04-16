@@ -522,6 +522,8 @@ export class ShapeSliderPanel {
   /** Connect the shape store for save/load functionality */
   connectStore(store: ShapeStore): void {
     this.shapeStore = store;
+    // Refresh gallery when NEXUS sync brings new shapes
+    store.onChanged(() => this.refreshGallery());
     this.refreshGallery();
   }
 
