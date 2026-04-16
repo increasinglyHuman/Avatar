@@ -1,10 +1,10 @@
 # Avatar ↔ NEXUS Integration Specification
 
-**Status:** Draft  
-**Date:** 2026-04-15  
+**Status:** v2 — Updated for modular NEXUS  
+**Date:** 2026-04-15 (updated from v1)  
 **Author:** Avatar Team (Allen Partridge / Claude)  
 **Audience:** World Team, NEXUS maintainers  
-**Relates to:** ADR-017 (Shape UI), ADR-018 (Appearance Panel), ADR-019 (Wardrobe UX), World ADR-070 (Wardrobe/Equipment)
+**Relates to:** ADR-017 (Shape UI), ADR-018 (Appearance Panel), ADR-019 (Wardrobe UX), World ADR-070 (Wardrobe/Equipment), ADR-074 (NEXUS Modular Architecture)
 
 ---
 
@@ -25,9 +25,42 @@ This document defines the shared contract: what Avatar produces, what NEXUS stor
 
 ---
 
-## 2. Asset Schemas (properties JSONB)
+## 2. Module Placement in NEXUS
 
-### 2.1 Shape
+### Recommendation: Extend the existing `inventory` module
+
+Avatar's integration is inventory CRUD with type-specific semantics. It does not warrant a new module. The work is:
+
+1. **Add `upsert_bodypart` action** to `InventoryModule.js` — follows the `upsert_script` pattern already in place (find-or-create by name + asset_subtype, update properties JSONB)
+2. **Add `upsert_clothing` action** — same pattern
+3. **Add `wear_exclusive` action** — wears an item and unwears all other items of the same `asset_subtype` (see Section 5)
+
+The existing `inventory_sync` and `inventory_action` socket events are the transport. No new events needed.
+
+### Manifest Update
+
+The inventory module manifest (`modules/inventory/manifest.json`) should update:
+
+```json
+{
+  "depended_on_by": {
+    "modules": [],
+    "clients": ["World", "Avatar"]
+  },
+  "socket_events": {
+    "inbound": [
+      { "event": "inventory_sync", "description": "..." },
+      { "event": "inventory_action", "description": "..., upsert_bodypart, upsert_clothing, wear_exclusive" }
+    ]
+  }
+}
+```
+
+---
+
+## 3. Asset Schemas (properties JSONB)
+
+### 3.1 Shape
 
 A shape is a lightweight data record (no binary asset). It stores the slider state for all 103 parameters, keyed by both internal ID and SL param ID for import/export compatibility.
 
@@ -81,7 +114,7 @@ A shape is a lightweight data record (no binary asset). It stores the slider sta
 - No binary asset required. `asset_id` and `glb_path` are NULL for shapes.
 - `is_worn` = true means this shape is the user's currently active shape.
 
-### 2.2 Skin (SkinSet)
+### 3.2 Skin (SkinSet)
 
 A skin is a matched set of three texture images (head, upper body, lower body) that map to the SL UV layout. Unlike shapes, skins have binary assets (the texture images).
 
@@ -122,7 +155,7 @@ A skin is a matched set of three texture images (head, upper body, lower body) t
 3. NEXUS returns URLs (stored in `user_assets` table)
 4. Avatar creates inventory item via `inventory_action` with URLs in properties
 
-### 2.3 Clothing Item
+### 3.3 Clothing Item
 
 Clothing in the current system is texture-based (painted onto avatar mesh regions, not separate 3D garments). Each clothing item targets one or more body regions.
 
@@ -157,7 +190,7 @@ Clothing in the current system is texture-based (painted onto avatar mesh region
 }
 ```
 
-### 2.4 Outfit
+### 3.4 Outfit
 
 An outfit is NOT a standalone item with binary data. It is a named folder (folder_type='outfit') containing **inventory_links** that reference the user's actual shape, skin, and clothing items. This matches the existing NEXUS outfit/link system from Migration 010.
 
@@ -185,154 +218,261 @@ An outfit is NOT a standalone item with binary data. It is a named folder (folde
 
 ---
 
-## 3. Required NEXUS/World Changes
+## 4. Required Inventory Actions (NEXUS Implementation)
 
-### 3.1 Inventory Type Registration (World Team — InventoryTypes.ts)
+These are the new `inventory_action` cases the World team needs to add to `InventoryModule.js`. They follow the existing `upsert_script` pattern — which already calls `db.createInventoryItem()`.
 
-Add shape and skin subtypes to the type-to-category mapping:
+### 4.1 `upsert_bodypart` — Create or update a shape/skin
 
-```typescript
-// In TYPE_TO_CATEGORY or equivalent mapping:
-'bodypart' → 'clothing' category  // Already exists
-
-// In TYPE_SUFFIX_MAP (icon suffixes):
-'shape' → 'shp'
-'skin'  → 'skn'
+```javascript
+// Client sends:
+socket.emit('inventory_action', {
+  action: 'upsert_bodypart',
+  itemId: null,              // null = create new, UUID = update existing
+  data: {
+    name: 'My Athletic Shape',
+    assetSubtype: 'shape',   // 'shape' | 'skin'
+    properties: { ... }      // Schema from Section 3.1 or 3.2
+  }
+}, (response) => { /* { action, item } or { error } */ });
 ```
 
-Shapes and skins should appear in the **Body Parts** system folder and in the **Clothing** category accordion (consistent with OpenSim convention where shapes and skins are bodyparts).
+**Server behavior:**
+- If `itemId` is provided: update `name` and `properties` on existing item (same as rename + properties update)
+- If `itemId` is null: call `db.createInventoryItem(userId, { assetType: 'bodypart', assetSubtype, name, properties, creatorId: userId, acquiredFrom: 'avatar_editor' })`
+- Return the created/updated item via ack
 
-### 3.2 Library Starter Shapes (NEXUS — Freebie Seeding)
+### 4.2 `upsert_clothing` — Create or update a clothing item
 
-Avatar will provide a set of starter shapes as JSON files. NEXUS should seed these as library items (owned by system user `00000000-0000-0000-0000-000000000001`) and copy to new users via `grant_freebie_inventory()`.
+```javascript
+socket.emit('inventory_action', {
+  action: 'upsert_clothing',
+  itemId: null,
+  data: {
+    name: 'Blue Henley Tee',
+    assetSubtype: 'shirt',
+    properties: { ... }      // Schema from Section 3.3
+  }
+}, (response) => { /* { action, item } or { error } */ });
+```
 
-**Starter shapes (Avatar provides):**
-- Default Female, Default Male
-- Athletic, Curvy, Slim, Heavy (body presets)
-- Angular Face, Soft Face, Distinct Face (face presets)
+**Server behavior:** Same create/update pattern as `upsert_bodypart` but with `assetType: 'clothing'`.
 
-Format: One JSON file per shape, same schema as section 2.1.
+### 4.3 `wear_exclusive` — Wear with slot exclusivity
 
-### 3.3 Avatar → NEXUS Auth Bridge
+```javascript
+socket.emit('inventory_action', {
+  action: 'wear_exclusive',
+  itemId: 'uuid-of-shape',
+  data: {
+    exclusiveSubtype: 'shape'  // Unwear all other 'shape' items before wearing this one
+  }
+}, (response) => { /* { action, item, unworn: ['uuid1', 'uuid2'] } */ });
+```
 
-Avatar currently runs standalone (no auth, no NEXUS connection). To save inventory items, Avatar needs:
+**Server behavior:**
+1. Query: `SELECT id FROM inventory_items WHERE user_id = $1 AND asset_subtype = $2 AND is_worn = true`
+2. For each result: `UPDATE inventory_items SET is_worn = false WHERE id = $1`
+3. Set `is_worn = true` on the target item
+4. Return the worn item + array of unworn item IDs (so client can update UI)
 
-1. **JWT token** — When Avatar is launched from World's shelf system, World should pass the user's JWT via URL parameter or postMessage.
-2. **NEXUS Socket.IO connection** — Avatar connects to `wss://poqpoq.com/nexus` (or port 3020) with the JWT.
-3. **Inventory operations** — Avatar uses `inventory_sync` and `inventory_action` events (same protocol World uses).
+**Why server-side exclusivity matters:** The existing `wear` action is a simple toggle with no constraints. For bodyparts (shape, skin, eyes, hair), only ONE of each subtype can be active at a time. Without server enforcement, two clients could race to wear different shapes, leaving the database in an inconsistent state. The `wear_exclusive` action makes the unset-then-set atomic within a single query transaction.
 
-**Proposed launch flow:**
+**Exclusivity rules:**
+
+| Subtype | Max Worn | Rationale |
+|---------|----------|-----------|
+| `shape` | 1 | One body shape at a time |
+| `skin` | 1 | One skin set at a time |
+| `eyes` | 1 | One eye texture at a time |
+| `hair` | 1 | One hairstyle at a time |
+| `shirt` | 1 per slot | One per clothing slot (upper_body, lower_body, etc.) |
+
+For clothing, exclusivity is per `properties.slot` rather than per `asset_subtype`. The client sends `exclusiveSlot: 'upper_body'` instead of `exclusiveSubtype`.
+
+---
+
+## 5. Avatar's Integration Manifest
+
+This is what Avatar registers as its contract with NEXUS. It follows the NEXUS module manifest format for cross-project visibility, even though Avatar is a client (not a server module).
+
+```json
+{
+  "name": "avatar-client",
+  "version": "1.0.0",
+  "description": "BlackBox Avatar character creation tool — consumes NEXUS inventory for shape/skin/clothing persistence",
+  "domain": "avatar",
+
+  "consumes": {
+    "nexus_module": "inventory",
+    "socket_events": {
+      "emits": [
+        {
+          "event": "inventory_sync",
+          "payload": "{}",
+          "description": "Fetch all bodypart + clothing items on connect"
+        },
+        {
+          "event": "inventory_action",
+          "actions": ["upsert_bodypart", "upsert_clothing", "wear_exclusive", "rename", "delete", "favorite"],
+          "description": "Shape/skin/clothing CRUD and wear management"
+        }
+      ],
+      "listens": [
+        {
+          "event": "inventory_full",
+          "description": "Full inventory snapshot — Avatar filters for asset_type bodypart + clothing"
+        },
+        {
+          "event": "inventory_update",
+          "description": "Single-item update confirmation (fallback when ack unavailable)"
+        },
+        {
+          "event": "inventory_error",
+          "description": "Error responses"
+        }
+      ]
+    },
+    "rest_endpoints": [
+      {
+        "method": "POST",
+        "path": "/nexus/assets/images/upload",
+        "description": "Upload skin/clothing textures (3 images per skin set, 1-3 per clothing item)"
+      }
+    ]
+  },
+
+  "auth": {
+    "mechanism": "JWT via postMessage from World, or URL fragment for direct launch",
+    "session": "Socket.IO connection with user_register event (same as World client)",
+    "fallback": "Standalone mode — localStorage only, no NEXUS connection"
+  },
+
+  "contract": {
+    "invariants": [
+      "Avatar only creates items with asset_type 'bodypart' or 'clothing'",
+      "Shape items have asset_subtype 'shape', no binary asset (asset_id = null, glb_path = null)",
+      "Skin items have asset_subtype 'skin', binary assets uploaded via /nexus/assets/images/upload",
+      "All properties JSONB include version:1 for schema evolution",
+      "Sparse param encoding: omitted params = default value (Avatar resolves on read)",
+      "wear_exclusive enforces one active shape and one active skin at a time"
+    ],
+    "failure_modes": [
+      "No JWT available → offline mode (localStorage only, no data loss)",
+      "NEXUS connection lost → queued mutations replayed on reconnect (future)",
+      "Upload quota exceeded → user notified, skin not saved"
+    ],
+    "performance": [
+      "inventory_sync filtered client-side (Avatar only renders bodypart + clothing items)",
+      "Shape saves are ~2KB JSONB (103 sparse params), no binary upload"
+    ]
+  }
+}
+```
+
+---
+
+## 6. Auth Bridge — JWT Handoff
+
+Avatar currently runs standalone. To connect to NEXUS, it needs the user's JWT.
+
+### Preferred mechanism: postMessage
+
 ```
 World shelf → opens Avatar (iframe or new tab)
-  → passes JWT + userId via postMessage
-  → Avatar connects to NEXUS with JWT
-  → Avatar fetches user's shapes/skins/clothing via inventory_sync
-  → User creates/edits in Avatar
-  → Avatar saves to NEXUS via inventory_action
-  → On close, Avatar sends postMessage to World with updated appearance
+  → World sends postMessage: { type: 'auth', jwt: '...', userId: '...' }
+  → Avatar connects to NEXUS Socket.IO with jwt in handshake auth
+  → Avatar emits 'user_register' with { userId, username } (same as World client)
+  → Avatar emits 'inventory_sync' to fetch user's items
+  → On save: Avatar emits 'inventory_action' with upsert_bodypart/upsert_clothing
+  → On close: Avatar sends postMessage to World: { type: 'appearance_updated' }
 ```
 
-**Fallback (standalone mode):**
-When Avatar is opened directly (not from World), it operates in offline mode with localStorage only. Items sync to NEXUS on next authenticated session.
+### Fallback: URL fragment
 
-### 3.4 Texture Upload Endpoint
+For direct-link launches (e.g., `https://poqpoq.com/avatar/#jwt=...`), Avatar reads JWT from the fragment. Fragment is not sent to server (safe), and cleared from URL after reading.
 
-Avatar needs to upload skin/clothing textures. The existing `/nexus/assets/images/upload` endpoint should work if it:
-- Accepts `asset_type: 'texture'` with `asset_subtype: 'skin_head' | 'skin_upper' | 'skin_lower' | 'clothing_upper' | 'clothing_lower'`
-- Returns the stored URL path
-- Respects user quota (skin sets = 3 images, clothing = 1-3 images)
+### Standalone mode
 
-**Question for World team:** Does the current upload endpoint support these subtypes, or does it need an allow-list update?
-
-### 3.5 CORS Configuration
-
-Avatar is served from `https://poqpoq.com/avatar/`. NEXUS CORS already allows `https://poqpoq.com` — no change needed if Avatar is on the same origin. If Avatar is ever served from a different origin, it must be added to the CORS allow list in NexusServer.js.
+When no JWT is available, Avatar operates in offline mode:
+- All saves go to localStorage (existing ShapeStore)
+- No NEXUS connection attempted
+- Items sync to NEXUS on next authenticated session (reconciliation TBD)
 
 ---
 
-## 4. What Avatar Implements (Our Side)
+## 7. Required NEXUS/World Changes (Checklist)
 
-### 4.1 Shape Serializer
+### Inventory Module (`InventoryModule.js`)
 
-Converts current slider state to/from the JSONB schema in section 2.1. Handles:
-- Sparse encoding (omit default values)
-- SL param ID mapping (for future import/export)
-- Version migration (if schema evolves)
+- [ ] Add `upsert_bodypart` action case (follows `upsert_script` pattern)
+- [ ] Add `upsert_clothing` action case (same pattern)
+- [ ] Add `wear_exclusive` action case (unset others of same subtype, then set)
+- [ ] Update manifest.json to list new actions and Avatar as a client
 
-### 4.2 localStorage Cache Layer
+### Inventory Types (`World/src/inventory/InventoryTypes.ts`)
 
-All shapes/skins/outfits are cached locally for instant load. Cache is the primary store in standalone mode, secondary when NEXUS is connected.
+- [ ] Add `'shape'` and `'skin'` to subtype recognition (TYPE_SUFFIX_MAP)
+- [ ] Ensure `'bodypart'` maps to `'clothing'` category (already does)
 
-```typescript
-// Cache key pattern:
-'bb-shapes'    → ShapeItem[]    // Array of saved shapes
-'bb-skins'     → SkinItem[]     // Array of saved skins
-'bb-outfits'   → OutfitItem[]   // Array of saved outfits
-'bb-shape-active' → string      // ID of currently worn shape
-```
+### Library Starter Shapes (Freebie Seeding)
 
-### 4.3 NEXUS Client Adapter
+- [ ] Avatar provides starter shape JSON files (Section 3.1 format)
+- [ ] Add to `grant_freebie_inventory()` in DatabaseManager — seeded as system-owned items
+- [ ] Starter shapes: Default Female, Default Male, Athletic, Curvy, Slim, Heavy
 
-Thin wrapper that connects to NEXUS Socket.IO when JWT is available:
-- On connect: `inventory_sync` to fetch all bodypart/clothing/outfit items
-- On save: `inventory_action` with `action: 'create'` or `action: 'update'`
-- On delete: `inventory_action` with `action: 'delete'` (soft delete)
-- Bidirectional sync: local cache ↔ NEXUS (NEXUS is source of truth when connected)
+### Texture Upload
 
-### 4.4 Save/Load UI
+- [ ] Verify `/nexus/assets/images/upload` accepts `asset_subtype: 'skin_head' | 'skin_upper' | 'skin_lower' | 'clothing_upper' | 'clothing_lower'`
+- [ ] If subtype allow-list exists, update it
 
-- **Shape tab:** "Save Shape" button creates a new shape item from current sliders. Shape gallery shows all saved shapes (local + NEXUS). Click to apply.
-- **Skin tab:** "Save Skin" button packages current head/upper/lower textures + tint as a skin item.
-- **Outfit tab:** "Save Outfit" button snapshots current shape + skin + clothing as an outfit.
+### CORS
 
-### 4.5 postMessage Bridge
-
-Avatar already has a PostMessageBridge module. We extend it to:
-- Receive JWT + userId from World on launch
-- Send appearance updates to World on save/close
-- Receive outfit-load commands from World (e.g., "apply this outfit")
+- [ ] No change needed — Avatar served from `https://poqpoq.com/avatar/` (same origin)
 
 ---
 
-## 5. Migration Path
+## 8. What Avatar Implements (Our Side)
 
-### Phase 1: localStorage Only (Current Sprint)
-- Shape save/load with localStorage
-- Shape gallery in the Shape tab
-- No NEXUS dependency
-- Shapes stored in the format defined in section 2.1 (future-proof)
+### Already Done (Phase 1)
+- [x] Shape serializer with NEXUS-compatible JSONB schema (ShapeStore)
+- [x] localStorage persistence (sparse param encoding, version field)
+- [x] Shape gallery UI (save/load/delete/update)
+- [x] PostMessageBridge module exists (needs JWT extension)
 
-### Phase 2: NEXUS Connection (Next Sprint)
-- Auth bridge (JWT from World)
-- Socket.IO inventory sync
-- Shapes flow to/from NEXUS
-- localStorage becomes cache layer
+### Phase 2: NEXUS Wire-Up
+- [ ] NexusInventoryAdapter: thin Socket.IO wrapper (connect, sync, upsert, wear)
+- [ ] Auth bridge: receive JWT via postMessage, connect to NEXUS
+- [ ] Bidirectional cache: localStorage ↔ NEXUS (NEXUS is source of truth)
+- [ ] Shape gallery fetches from NEXUS on connect, falls back to localStorage
 
-### Phase 3: Full Inventory Integration
-- Skins as inventory items (texture upload + properties)
-- Clothing as inventory items
-- Outfit composition (folder + links)
-- Library starter shapes/skins seeded by NEXUS
-- Marketplace support (shapes/skins tradeable)
-
----
-
-## 6. Open Questions for World Team
-
-1. **Upload subtypes:** Does `/nexus/assets/images/upload` need an allow-list update for skin/clothing texture subtypes?
-2. **Outfit folder creation:** Can `inventory_action` create folders (folder_type='outfit'), or does that need a new action type?
-3. **inventory_action 'create':** The current handler supports rename/delete/restore/favorite/wear/move/empty_trash/upsert_script. Is there a `create` or `insert` action for new items? Or does that go through a different endpoint?
-4. **Inventory links:** The `inventory_links` table exists in schema but — is the link CRUD exposed via socket events?
-5. **Auth handoff:** What's the preferred mechanism for passing JWT to Avatar? postMessage, URL fragment, or shared cookie?
+### Phase 3: Full Integration
+- [ ] Skin save/load as inventory items (texture upload + properties)
+- [ ] Clothing save/load as inventory items
+- [ ] Outfit composition (folder + links via NEXUS)
+- [ ] Marketplace support (shapes/skins/clothing tradeable)
 
 ---
 
-## 7. Compatibility Notes
+## 9. Open Questions for World Team
+
+1. ~~**Does a `create` action exist?**~~ **Answered:** No generic create, but `upsert_script` uses `db.createInventoryItem()`. We propose `upsert_bodypart` and `upsert_clothing` following the same pattern. Acceptable?
+
+2. **Texture upload subtypes:** Does `/nexus/assets/images/upload` need an allow-list update for `skin_head`, `skin_upper`, `skin_lower`, `clothing_upper`, `clothing_lower`?
+
+3. **Outfit folder creation:** Can `inventory_action` create folders (`folder_type='outfit'`), or does that need a new action? (Needed for Phase 3 outfit composition.)
+
+4. **Inventory links CRUD:** The `inventory_links` table exists in schema — is link create/delete exposed via socket events? (Needed for Phase 3.)
+
+5. **Auth handoff:** Is postMessage the preferred mechanism for JWT transfer? Or does the team prefer a shared httpOnly cookie approach?
+
+---
+
+## 10. Compatibility Notes
 
 ### OpenSim/SL Interop
 - Shape param IDs map to SL's `avatar_lad.xml` param numbers
 - The `sl_params` field in the shape schema enables round-trip import/export
-- Shapes exported from SL viewers (as XML or binary) can be converted to our format
 - This is not required for Phase 1-2 but the schema supports it from day one
 
 ### Gender Handling
@@ -348,4 +488,4 @@ Avatar already has a PostMessageBridge module. We extend it to:
 
 ---
 
-*This document is the contract between Avatar and World/NEXUS teams. Changes to the JSONB schemas should be coordinated. The Avatar team will maintain this spec as implementation progresses.*
+*This document is the contract between Avatar and World/NEXUS teams. Changes to the JSONB schemas or socket event signatures should be coordinated. The Avatar team will maintain this spec as implementation progresses.*
